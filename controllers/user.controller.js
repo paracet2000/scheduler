@@ -1,7 +1,7 @@
 const User = require('../model/user');
-const asyncHandler = require('../helpers/asyncHandler');
+const asyncHandler = require('../helpers/asynchandler');
 const response = require('../helpers/response');
-const AppError = require('../helpers/AppError');
+const AppError = require('../helpers/apperror');
 
 /**
  * @desc    Get current user profile
