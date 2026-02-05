@@ -1,13 +1,13 @@
+// routes/user.routes.js
 const router = require('express').Router();
-const auth = require('../middleware/authenticate');
-const upload = require('../middleware/upload');
-const ctrl = require('../controllers/user.controller');
 
-router.post('/register', ctrl.register);
-router.post('/login', ctrl.login);
-router.get('/verify/:token', ctrl.verify);
-router.post('/resend-verify', auth, ctrl.resendVerifyEmail);
-router.get('/me', auth, ctrl.profile);
-router.post('/me/avatar', auth, upload.single('image'), ctrl.uploadProfile);
+const authenticate = require('../middleware/authenticate');
+const upload = require('../middleware/upload');
+const userController = require('../controllers/user.controller');
+
+// user profile
+router.get('/me', authenticate, userController.getProfile);
+router.put('/me', authenticate, userController.updateProfile);
+router.post('/me/avatar',  authenticate,  upload.single('image'),  userController.uploadProfileImage);
 
 module.exports = router;

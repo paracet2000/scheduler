@@ -1,6 +1,6 @@
-const Master = require('../models/master.model');
+const Master = require('../model/base/master.schema');
 const AppError = require('../helpers/apperror');
-const asyncHandler = require('../helpers/asyncHandler');
+const asyncHandler = require('../helpers/async.handler');
 
 /**
  * =========================

@@ -1,5 +1,5 @@
 // helpers/master.helper.js
-const Master = require('../models/master.model');
+const Master = require('../model/base/master.schema');
 
 exports.getPositionIdsByCodes = async (codes) => {
   const positions = await Master.find({

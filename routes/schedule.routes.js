@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const auth = require('../middleware/auth');
+const auth = require('../middleware/authenticate');
 const authorizeWard = require('../middleware/authorize-ward');
 const ctrl = require('../controllers/schedule.controller');
 

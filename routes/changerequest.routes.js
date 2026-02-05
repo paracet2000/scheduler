@@ -3,7 +3,7 @@ const router = express.Router();
 
 const changeRequestController = require('../controllers/changerequest.controller');
 const authenticate = require('../middleware/authenticate');
-const authorize = require('../middleware/authorize');
+const authorize = require('../middleware/authorize-ward');
 
 /**
  * =========================
@@ -31,62 +31,39 @@ router.post(
 /**
  * ดูคำขอของตัวเอง
  */
-router.get(
-  '/my',
-  authorize(['user', 'head', 'admin']),
-  changeRequestController.getMyRequests
-);
+router.get( '/my',  authorize(['user', 'head', 'admin']),  changeRequestController.list);
 
 /**
  * ยกเลิกคำขอ (เฉพาะ status OPEN)
  */
-router.patch(
-  '/:id/cancel',
-  authorize(['user', 'head', 'admin']),
-  changeRequestController.cancel
-);
+// router.patch(  '/:id/cancel',  authorize(['user', 'head', 'admin']),  changeRequestController.);
 
 /**
  * รับคำขอ (อาสามาแทน)
  */
-router.patch(
-  '/:id/accept',
-  authorize(['user', 'head', 'admin']),
-  changeRequestController.accept
-);
+// router.patch(  '/:id/accept',  authorize(['user', 'head', 'admin']),  changeRequestController.accept);
 
 /**
  * -------------------------
  * HEAD / APPROVER
  * -------------------------
+
  */
 
 /**
  * ดูคำขอใน ward (filter ได้)
  * ?wardId=&status=&type=
  */
-router.get(
-  '/',
-  authorize(['head', 'approver', 'admin']),
-  changeRequestController.list
-);
+router.get('/',  authorize(['head', 'approver', 'admin']),  changeRequestController.list);
 
 /**
  * approve คำขอ
  */
-router.patch(
-  '/:id/approve',
-  authorize(['head', 'approver', 'admin']),
-  changeRequestController.approve
-);
+router.patch(  '/:id/approve',  authorize(['head', 'approver', 'admin']),  changeRequestController.approve);
 
 /**
  * reject คำขอ
  */
-router.patch(
-  '/:id/reject',
-  authorize(['head', 'approver', 'admin']),
-  changeRequestController.reject
-);
+router.patch(  '/:id/reject',  authorize(['head', 'approver', 'admin']),  changeRequestController.reject);
 
 module.exports = router;

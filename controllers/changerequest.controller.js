@@ -1,5 +1,5 @@
-const ChangeRequest = require('../models/changerequest.model');
-const Schedule = require('../models/schedule.model');
+const ChangeRequest = require('../model/changerequest.model');
+const Schedule = require('../model/schedule.model');
 const AppError = require('../helpers/apperror');
 
 /* ======================================================

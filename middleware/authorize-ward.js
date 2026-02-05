@@ -1,6 +1,6 @@
 // middlewares/authorize-ward.middleware.js
-const UserWard = require('../models/user-ward.model')
-const AppError = require('../helpers/app-error')
+const UserWard = require('../model/user-ward.model')
+const AppError = require('../helpers/apperror')
 
 /**
  * authorizeWard

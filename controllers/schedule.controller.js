@@ -1,4 +1,4 @@
-const Schedule = require('../models/schedule.model');
+const Schedule = require('../model/schedule.model');
 const AppError = require('../helpers/apperror');
 const asyncHandler = require('../helpers/async.handler');
 const { getPositionIdsByCodes } = require('../helpers/master.helper');
@@ -8,6 +8,7 @@ const { getPositionIdsByCodes } = require('../helpers/master.helper');
  */
 exports.bookSchedule = asyncHandler(async (req) => {
   const { schedules } = req.body;
+  
   /**
    * schedules = [
    *   {

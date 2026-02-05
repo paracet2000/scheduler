@@ -3,7 +3,7 @@ const router = express.Router();
 
 const ctrl = require('../controllers/master.controller');
 const auth = require('../middleware/authenticate');
-const authorizeRole = require('../middleware/authorize-role.middleware');
+const authorizeRole = require('../middleware/authorize-ward');
 
 /**
  * =========================

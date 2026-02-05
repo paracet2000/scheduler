@@ -1,5 +1,6 @@
-const User = require('../model/user');
-const asyncHandler = require('../helpers/asynchandler');
+// controllers/user.controller.js
+const User = require('../model/user.model');
+const asyncHandler = require('../helpers/async.handler');
 const response = require('../helpers/response');
 const AppError = require('../helpers/apperror');
 
@@ -52,26 +53,3 @@ exports.uploadProfileImage = asyncHandler(async (req, res) => {
 
   response.success(res, user, 'Profile image updated');
 });
-
-/**
- * @desc    Resend verification email
- * @route   POST /api/users/resend-verify
- */
-exports.resendVerifyEmail = asyncHandler(async (req, res) => {
-  const user = req.user;
-
-  if (user.emailVerified) {
-    throw new AppError('Email already verified', 400);
-  }
-
-  const verifyToken = crypto.randomBytes(32).toString('hex');
-
-  user.emailVerifyToken = verifyToken;
-  await user.save();
-
-  const verifyLink = `${process.env.CLIENT_URL}/verify/${verifyToken}`;
-  await mail.sendVerifyEmail(user.email, verifyLink);
-
-  response.success(res, null, 'Verification email resent');
-});
-
