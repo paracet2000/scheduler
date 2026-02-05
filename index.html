@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Nurse Scheduler</title>
+
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+
+    <!-- jQuery -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script>
+        window.jQuery || document.write(
+            decodeURIComponent('%3Cscript src="js/jquery.min.js"%3E%3C/script%3E')
+        );
+    </script>
+
+    <!-- DevExtreme -->
+    <link rel="stylesheet"
+          href="https://cdn3.devexpress.com/jslib/25.2.4/css/dx.softblue.compact.css" />
+    <script src="https://cdn3.devexpress.com/jslib/25.2.4/js/dx.all.js"></script>
+
+    <!-- App -->
+    <link rel="stylesheet" href="styles.css" />
+    <script src="js/personal.js" defer></script>
+    <script src="js/master.js" defer></script>
+    <script src="js/userManagement.js" defer></script>
+    <script src="js/schedule.js" defer></script>
+    <script src="js/index.js" defer></script>
+</head>
+
+<body class="dx-viewport">
+
+    <!-- Top Bar -->
+    <header class="topbar">
+        <div class="logo">🩺 Nurse Scheduler</div>
+        <nav class="top-menu" id="topMenu">
+            <!-- future: user profile / logout -->
+        </nav>
+    </header>
+
+    <!-- Layout -->
+    <div class="layout">
+        <!-- Content -->
+        <main class="main-content" id="mainContent">
+
+            <div id="dashboard" class="page"></div>
+
+            <div id="schedule" class="page pagehidden">
+                <div class="schedule-toolbar">
+                    <div id="scheduleWardFilter"></div>
+                </div>
+                <div id="personalScheduler"></div>
+            </div>
+
+            <div id="change" class="page pagehidden"></div>
+
+            <div id="profile" class="page pagehidden"></div>
+
+            <div id="register" class="page pagehidden">
+                <div id="registerForm"></div>
+
+                <div class="form-actions-left">
+                    <div id="btnSave"></div>
+                    <div id="btnClose"></div>
+                </div>
+            </div>
+
+            <div id="login" class="page pagehidden">
+                <div id="loginForm"></div>
+
+                <div class="form-actions-left">
+                    <div id="btnLogin"></div>
+                    <div id="btnLoginClose"></div>
+                </div>
+            </div>
+
+            <div id="settingsPersonal" class="page pagehidden">
+                <div id="personalSettings"></div>
+            </div>
+
+            <div id="settingsSystem" class="page pagehidden">
+                <div id="systemSettings"></div>
+            </div>
+
+            <div id="userManagement" class="page pagehidden">
+                <div id="userGrid"></div>
+            </div>
+
+        </main>
+    </div>
+
+</body>
+</html>

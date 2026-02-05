@@ -8,13 +8,19 @@ const scheduleSchema = new mongoose.Schema(
      */
     wardId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Ward',
+      ref: 'Master',
       required: true
     },
 
     userWardId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'UserWard',
+      required: false
+    },
+
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
       required: true
     },
 
@@ -91,7 +97,7 @@ const scheduleSchema = new mongoose.Schema(
  * 1 คน / 1 วัน / 1 เวร ต้องไม่ซ้ำ
  */
 scheduleSchema.index(
-  { userWardId: 1, workDate: 1, shiftCode: 1 },
+  { userId: 1, workDate: 1, shiftCode: 1 },
   { unique: true }
 )
 

@@ -13,7 +13,6 @@ const ctrl = require('../controllers/schedule.controller');
 router.post(
   '/book',
   auth,
-  authorizeWard(['USER']),
   ctrl.bookSchedule
 );
 

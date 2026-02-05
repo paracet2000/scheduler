@@ -19,6 +19,11 @@ const signToken = (id) =>
  */
 exports.register = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body;
+  const requestedRoles = Array.isArray(req.body.roles) ? req.body.roles : [];
+  const allowedRoles = ['user', 'head', 'approver', 'hr', 'finance', 'admin'];
+  const roles = process.env.NODE_ENV === 'development'
+    ? requestedRoles.filter((r) => allowedRoles.includes(r))
+    : ['user'];
 
   const exists = await User.findOne({ email });
   if (exists) throw new AppError('Email already exists', 400);
@@ -30,7 +35,8 @@ exports.register = asyncHandler(async (req, res) => {
     email,
     password,
     emailVerifyToken: verifyToken,
-    emailVerified: false
+    emailVerified: false,
+    roles: roles.length ? roles : ['user']
   });
 
   const verifyLink = `${process.env.CLIENT_URL}/verify/${verifyToken}`;
@@ -41,7 +47,7 @@ exports.register = asyncHandler(async (req, res) => {
   response.success(
     res,
     {
-      user: user.toJSON(),
+      roles: user.roles,
       token
     },
     'Register successful. Please verify your email.'
@@ -55,8 +61,10 @@ exports.register = asyncHandler(async (req, res) => {
  */
 exports.login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
-
-  const user = await User.findOne({ email }).select('+password');
+  const normalizedEmail = email ? email.toLowerCase() : '';
+  
+  const user = await User.findOne({ email: normalizedEmail }).select('+password');
+  
   if (!user) throw new AppError('Invalid credentials', 401);
 
   const isMatch = await user.comparePassword(password);
@@ -67,7 +75,8 @@ exports.login = asyncHandler(async (req, res) => {
   response.success(
     res,
     {
-      user: user.toJSON(),
+      roles: user.roles,
+      avatar: user.avatar,
       token
     },
     'Login successful'

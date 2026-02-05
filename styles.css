@@ -1,0 +1,405 @@
+/* =====================
+   Global Variables
+===================== */
+:root {
+  --primary: #2563eb;
+  --bg: #f8fafc;
+  --sidebar-bg: #0f172a;
+  --sidebar-text: #cbd5f5;
+  --border: #e5e7eb;
+}
+
+/* =====================
+   Reset / Base
+===================== */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: #0f172a;
+}
+
+/* =====================
+   Layout
+===================== */
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ---------- Layout Wrapper ---------- */
+.layout {
+  display: flex;
+  min-height: calc(100vh - 64px);
+}
+
+/* ---------- Main Content ---------- */
+.main-content {
+  flex: 1;
+  display: block;
+  width: 100%;
+}
+
+/* ---------- Topbar ---------- */
+.topbar {
+  height: 64px;
+  background: white;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+}
+
+.topbar .title {
+  font-weight: 600;
+}
+
+.hamburger {
+  display: none;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+/* ---------- Content ---------- */
+.content {
+  padding: 24px;
+  flex: 1;
+  overflow: auto;
+}
+
+#mainContent {
+    display: block;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    background-color: var(--bg);
+    min-height: 100vh;
+}
+
+.page {
+    max-width: 600px;
+    width: 100%;
+    background-color: white;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+}
+
+/* =====================
+   DevExtreme Overrides
+===================== */
+.app-shell .dx-scheduler {
+  border-radius: 16px;
+}
+
+.app-shell .dx-datagrid {
+  border-radius: 16px;
+}
+
+.app-shell .dx-tabpanel {
+  background: transparent;
+}
+
+/* =====================
+   Responsive
+===================== */
+@media (max-width: 768px) {
+  .hamburger {
+    display: block;
+  }
+}
+
+/* Wider canvas for system settings */
+#settingsSystem.page {
+    max-width: 1100px;
+}
+
+/* Wider canvas for user management */
+#userManagement.page {
+    max-width: 1100px;
+}
+
+/* Wider canvas for schedule */
+#schedule.page {
+    max-width: 1100px;
+}
+
+.schedule-toolbar {
+    display: flex;
+    justify-content: flex-start;
+    margin-bottom: 12px;
+}
+
+.shift-code-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.shift-code-item {
+    padding: 4px 0;
+}
+
+.pagehidden {
+    display: none;
+}
+
+.user-menu-button {
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+}
+
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #e2e8f0, #cbd5f5);
+    color: #0f172a;
+    font-weight: 700;
+    font-size: 14px;
+    border: 2px solid #e2e8f0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    overflow: hidden;
+}
+
+.user-avatar.has-image {
+    color: transparent;
+    background-size: contain;
+    background-color: #ffffff;
+}
+
+.user-avatar--active {
+    background: linear-gradient(135deg, #2563eb, #60a5fa);
+    color: #ffffff;
+    border-color: rgba(37, 99, 235, 0.4);
+}
+
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.dropdown-toggle {
+    background-color: transparent;
+    border: none;
+    padding: 0;
+}
+
+.dropdown-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    background-color: white;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 5px;
+    z-index: 1000;
+    min-width: 150px;
+}
+
+.dropdown-item {
+    padding: 10px;
+    text-align: left;
+    border: none;
+    background: none;
+    width: 100%;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.dropdown-item:hover {
+    background-color: var(--primary);
+    color: white;
+}
+
+#settings .settings-placeholder {
+    padding: 12px;
+    background: #f8fafc;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    color: #64748b;
+}
+
+.system-settings {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.system-settings-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.system-settings-item {
+    text-align: left;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: #ffffff;
+    cursor: pointer;
+    font-size: 14px;
+    color: #0f172a;
+    display: grid;
+    grid-template-columns: 38px 1fr;
+    gap: 10px;
+    align-items: center;
+}
+
+.system-settings-item.active,
+.system-settings-item:hover {
+    background: #e0e7ff;
+    border-color: #c7d2fe;
+}
+
+.system-settings-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: #0f172a;
+    background: #e2e8f0;
+}
+
+.system-settings-label {
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.system-settings-sub {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.system-settings-content {
+    min-height: 180px;
+    max-width: 100%;
+    overflow: auto;
+    padding-top: 0;
+}
+
+.system-settings-content .dx-datagrid {
+    margin-top: 0;
+    width: 100%;
+}
+
+.system-settings-content .dx-header-row,
+.system-settings-content .dx-header-row > td {
+    transition: background-color 220ms ease, color 220ms ease;
+}
+
+/* User Management header */
+#userManagement .dx-datagrid .dx-header-row,
+#userManagement .dx-datagrid .dx-header-row > td {
+    background-color: #4b86d4;
+    color: #fefeff;
+}
+
+.reset-pass-btn {
+    padding: 6px 8px;
+    min-width: 36px;
+}
+
+#register {
+    max-width: 600px;
+    margin: 50px auto;
+    padding: 20px;
+    background-color: white;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+#userManagement .dx-datagrid {
+    width: 100%;
+}
+
+#userManagement .dx-datagrid-headers,
+#userManagement .dx-datagrid-rowsview,
+#userManagement .dx-datagrid-content {
+    width: 100%;
+}
+
+/* Profile page */
+.profile-header {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.profile-avatar {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: #e2e8f0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: #0f172a;
+    font-size: 18px;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    overflow: hidden;
+}
+
+.profile-avatar.has-image {
+    color: transparent;
+    background-size: contain;
+    background-color: #ffffff;
+}
+
+.profile-name {
+    font-weight: 700;
+    font-size: 18px;
+}
+
+.profile-email {
+    color: #64748b;
+    font-size: 13px;
+}
+
+.profile-meta {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.profile-badge {
+    background: #e0e7ff;
+    color: #1e3a8a;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+}
+
+.profile-section {
+    margin-top: 16px;
+}
+
+.profile-section-title {
+    font-weight: 600;
+    margin-bottom: 8px;
+}

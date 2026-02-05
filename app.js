@@ -17,10 +17,11 @@ app.use(requestLogger);
 /* =========================
  * Routes
  * ========================= */
-// app.use('/api/auth', require('./routes/auth.routes'));
+app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/users', require('./routes/user.routes'));
 app.use('/api/masters', require('./routes/master.routes'));
-// app.use('/api/user-wards', require('./routes/userward.routes'));
+app.use('/api/master-types', require('./routes/masterType.routes'));
+app.use('/api/user-wards', require('./routes/userward.routes'));
 app.use('/api/schedules', require('./routes/schedule.routes'));
 app.use('/api/changes', require('./routes/changerequest.routes'));
 

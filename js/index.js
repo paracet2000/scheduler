@@ -1,0 +1,334 @@
+// js/index.js
+$(document).ready(function() {
+    const BASE_URL = 'http://localhost:3000';
+    window.BASE_URL = BASE_URL;
+    // Add a dropdown button to the top menu
+    const dropdown = $('<div>', { class: 'dropdown' });
+    const button = $('<button>', { class: 'user-menu-button dropdown-toggle', 'aria-label': 'User menu' })
+        .append($('<span>', { class: 'user-avatar', text: 'U' }));
+    const dropdownMenu = $('<div>', { class: 'dropdown-menu' });
+
+    function showPage(pageId) {
+        $('.page').addClass('pagehidden');
+        $(`#${pageId}`).removeClass('pagehidden');
+    }
+
+    function renderRegister() {
+
+    showPage('register');
+    $('#registerForm').dxForm({
+        formData: {
+            employeeCode: '',
+            name: '',
+            email: '',
+            password: '',
+            phone: '',
+            roles: ['user']
+        },
+        colCount: 2,
+        showValidationSummary: true,
+        items: [
+            { dataField: 'employeeCode', label: { text: 'Employee Code' }, validationRules: [{ type: 'required' }] },
+            { dataField: 'name', validationRules: [{ type: 'required' }] },
+            { dataField: 'email', validationRules: [{ type: 'required' }, { type: 'email' }] },
+            { dataField: 'password', editorOptions: { mode: 'password' }, validationRules: [{ type: 'required' }] },
+            { dataField: 'phone' },
+            {
+                dataField: 'roles',
+                editorType: 'dxTagBox',
+                visible: false,
+                editorOptions: {
+                    items: ['user', 'head', 'approver', 'hr', 'finance', 'admin']
+                }
+            }
+        ]
+    });
+
+    $('#btnSave').dxButton({
+        text: 'Save',
+        type: 'success',
+        width: 100,
+        onClick: async () => {
+            const form = $('#registerForm').dxForm('instance');
+            if (!form.validate().isValid) return;
+
+            const data = form.option('formData');
+            console.log('form Data: ',data);
+            try {
+                const res = await fetch(`${BASE_URL}/api/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const json = await res.json();
+
+                if (!res.ok) {
+                    throw new Error(json.message || 'Register failed');
+                }
+
+                DevExpress.ui.notify(
+                    'Register success! Please verify your email.',
+                    'success',
+                    3000
+                );
+
+                
+                showPage('dashboard');
+            } catch (err) {
+                DevExpress.ui.notify(err.message, 'error', 3000);
+            }
+        }
+    });    
+
+    $('#btnClose').dxButton({
+        text: 'Close',
+        type: 'danger',
+        width: 100,
+        onClick() {
+            
+            showPage('dashboard');
+        }
+    });
+}
+
+    function renderLogin() {
+        showPage('login');
+
+        $('#loginForm').dxForm({
+            formData: {
+                email: '',
+                password: ''
+            },
+            colCount: 1,
+            showValidationSummary: true,
+            items: [
+                { dataField: 'email', label: { text: 'Email' }, validationRules: [{ type: 'required' }, { type: 'email' }] },
+                { dataField: 'password', editorOptions: { mode: 'password' }, validationRules: [{ type: 'required' }] }
+            ]
+        });
+
+        $('#btnLogin').dxButton({
+            text: 'Login',
+            type: 'success',
+            width: 100,
+            onClick: async () => {
+                const form = $('#loginForm').dxForm('instance');
+                
+                if (!form.validate().isValid) return;
+
+                const data = form.option('formData');
+
+                try {
+                    const res = await fetch(`${BASE_URL}/api/auth/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+
+                    const json = await res.json();
+
+                    if (!res.ok) {
+                        throw new Error(json.message || 'Login failed');
+                    }
+
+                    const token = json?.data?.token;
+                    const roles = json?.data?.roles;
+                    const avatar = json?.data?.avatar;
+                    console.log('avatar logon Data: ',avatar);
+                    if (token) {
+                        localStorage.setItem('auth_token', token);
+                    }
+                    if (roles) {
+                        localStorage.setItem('auth_roles', JSON.stringify(roles));
+                    }
+                    if (avatar) {
+                        updateUserAvatar(avatar);
+                    } else {
+                        updateUserAvatar(null);
+                    }
+                    updateAuthUI(true);
+
+                    DevExpress.ui.notify('Login success!', 'success', 3000);
+                    if (typeof window.renderSchedule === 'function') {
+                        window.renderSchedule();
+                    } else {
+                        showPage('dashboard');
+                    }
+                } catch (err) {
+                    DevExpress.ui.notify(err.message, 'error', 3000);
+                }
+            }
+        });
+
+        $('#btnLoginClose').dxButton({
+            text: 'Close',
+            type: 'danger',
+            width: 100,
+            onClick() {
+                
+                showPage('dashboard');
+            }
+        });
+    }
+
+    // renderPersonalSettings moved to js/personal.js
+
+    // renderSystemSettings moved to js/master.js
+
+    // Add menu items
+    const menuItems = [
+        { id: 'menuSignup', text: 'Signup', action: () => {
+            renderRegister();
+            dropdownMenu.hide(); // Collapse the dropdown menu after click
+        } },
+        { id: 'menuSettingsPersonal', text: 'Personal Settings', action: () => {
+            if (typeof window.renderPersonalSettings === 'function') {
+                window.renderPersonalSettings();
+            }
+            dropdownMenu.hide(); // Collapse the dropdown menu after click
+        } },
+        { id: 'menuSettingsSystem', text: 'System Settings', action: () => {
+            if (typeof window.renderSystemSettings === 'function') {
+                window.renderSystemSettings();
+            }
+            dropdownMenu.hide(); // Collapse the dropdown menu after click
+        } },
+        { id: 'menuSchedule', text: 'My Schedule', action: () => {
+            if (typeof window.renderSchedule === 'function') {
+                window.renderSchedule();
+            }
+            dropdownMenu.hide();
+        } },
+        { id: 'menuUserManagement', text: 'User Management', action: () => {
+            if (typeof window.renderUserManagement === 'function') {
+                window.renderUserManagement();
+            }
+            dropdownMenu.hide(); // Collapse the dropdown menu after click
+        } },
+        { id: 'menuLogin', text: 'Login', action: () => {
+            renderLogin();
+            dropdownMenu.hide(); // Collapse the dropdown menu after click
+        } },
+        { id: 'menuLogout', text: 'Logout', action: () => {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('auth_roles');
+            updateUserAvatar(null);
+            updateAuthUI(false);
+            showPage('dashboard');
+            dropdownMenu.hide(); // Collapse the dropdown menu after click
+        } }
+    ];
+
+    const menuButtons = {};
+
+    menuItems.forEach(item => {
+        const menuItem = $('<button>', {
+            text: item.text,
+            class: 'dropdown-item',
+            click: item.action
+        });
+        if (item.id) menuButtons[item.id] = menuItem;
+        dropdownMenu.append(menuItem);
+    });
+
+    // Append button and menu to dropdown
+    dropdown.append(button).append(dropdownMenu);
+
+    // Append dropdown to the top menu and apply right alignment
+    $('#topMenu').css('display', 'flex').css('justify-content', 'flex-end').append(dropdown);
+
+    // Toggle dropdown menu visibility
+    button.on('click', function() {
+        dropdownMenu.toggle();
+    });
+
+    function updateAuthUI(isLoggedIn) {
+        const showWhenLoggedOut = ['menuSignup', 'menuLogin'];
+        const showWhenLoggedIn = ['menuSettingsPersonal', 'menuLogout', 'menuSchedule'];
+
+        showWhenLoggedOut.forEach(id => {
+            if (menuButtons[id]) menuButtons[id].toggle(!isLoggedIn);
+        });
+        showWhenLoggedIn.forEach(id => {
+            if (menuButtons[id]) menuButtons[id].toggle(isLoggedIn);
+        });
+        if (menuButtons.menuSettings) {
+            menuButtons.menuSettings.toggle(false);
+        }
+
+        const roles = getStoredRoles();
+        const isAdmin = roles.includes('admin');
+        if (menuButtons.menuSettingsSystem) {
+            menuButtons.menuSettingsSystem.toggle(isLoggedIn && isAdmin);
+        }
+        if (menuButtons.menuUserManagement) {
+            menuButtons.menuUserManagement.toggle(isLoggedIn && isAdmin);
+        }
+    }
+
+    function getStoredRoles() {
+        const storedRoles = localStorage.getItem('auth_roles');
+        if (!storedRoles) return [];
+        try {
+            const roles = JSON.parse(storedRoles);
+            return Array.isArray(roles) ? roles : [];
+        } catch {
+            return [];
+        }
+    }
+
+    function updateUserAvatar(avatarUrl) {
+        const avatar = button.find('.user-avatar');
+        if (avatarUrl) {
+            avatar
+                .css('background-image', `url(${avatarUrl})`)
+                .addClass('has-image user-avatar--active')
+                .text('');
+            return;
+        }
+
+        
+        if (!avatarUrl) {
+            avatar.text('U');
+            avatar.removeClass('user-avatar--active has-image');
+            avatar.css('background-image', '');
+            return;
+        }
+
+        // const name = user.name || user.email || 'User';
+        // const initial = name.trim().charAt(0).toUpperCase();
+        // avatar.text(initial);
+        // avatar.addClass('user-avatar--active');
+        // avatar.removeClass('has-image');
+        // avatar.css('background-image', '');
+        
+    }
+
+    // Initial auth state from localStorage
+    const initialToken = localStorage.getItem('auth_token');
+    updateAuthUI(!!initialToken);
+
+    if (initialToken) {
+        const apiBase = window.BASE_URL || 'http://localhost:3000';
+        fetch(`${apiBase}/api/users/me`, {
+            headers: { Authorization: `Bearer ${initialToken}` }
+        })
+            .then((res) => res.json())
+            .then((json) => {
+                if (json?.data?.avatar) {
+                    updateUserAvatar(json.data.avatar);
+                }
+            })
+            .catch(() => {});
+        if (typeof window.renderSchedule === 'function') {
+            window.renderSchedule();
+        }
+    }
+
+    // expose helpers for personal.js and master.js
+    window.showPage = showPage;
+    window.getStoredRoles = getStoredRoles;
+    window.updateUserAvatar = updateUserAvatar;
+
+});

@@ -13,7 +13,7 @@ module.exports = asyncHandler(async (req, res, next) => {
   ) {
     token = req.headers.authorization.split(' ')[1];
   }
-
+  
   if (!token) {
     throw new AppError('Unauthorized', 401);
   }
@@ -21,6 +21,7 @@ module.exports = asyncHandler(async (req, res, next) => {
   const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
   const user = await User.findById(decoded.id);
+  
   if (!user || user.status !== 'ACTIVE') {
     throw new AppError('User not found or inactive', 401);
   }
