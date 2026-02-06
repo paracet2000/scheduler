@@ -1,4 +1,5 @@
 const Schedule = require('../model/schedule.model');
+const SchedulerHead = require('../model/scheduler.head.model');
 const AppError = require('../helpers/apperror');
 const asyncHandler = require('../helpers/async.handler');
 const response = require('../helpers/response');
@@ -130,4 +131,20 @@ exports.activateSchedule = asyncHandler(async (req, res) => {
   await schedule.save();
 
   response.success(res, schedule, 'Schedule activated');
+});
+
+/**
+ * USER: check booking window by ward
+ * GET /api/schedules/head/:wardId
+ */
+exports.bookingWindow = asyncHandler(async (req, res) => {
+  const { wardId } = req.params;
+  const head = await SchedulerHead.findOne({ wardId });
+
+  if (!head) {
+    return response.success(res, { open: false, status: 'NOT_FOUND' }, 'Not opened');
+  }
+
+  const open = head.status !== 'CLOSED';
+  response.success(res, { open, status: head.status }, 'Booking window');
 });

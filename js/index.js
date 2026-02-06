@@ -278,11 +278,18 @@ $(document).ready(function() {
         }
     }
 
+    function resolveAvatarUrl(avatarUrl) {
+        if (!avatarUrl) return '';
+        if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) return avatarUrl;
+        const apiBase = window.BASE_URL || 'http://localhost:3000';
+        return `${apiBase}${avatarUrl}`;
+    }
+
     function updateUserAvatar(avatarUrl) {
         const avatar = button.find('.user-avatar');
         if (avatarUrl) {
             avatar
-                .css('background-image', `url(${avatarUrl})`)
+                .css('background-image', `url(${resolveAvatarUrl(avatarUrl)})`)
                 .addClass('has-image user-avatar--active')
                 .text('');
             return;
@@ -330,5 +337,6 @@ $(document).ready(function() {
     window.showPage = showPage;
     window.getStoredRoles = getStoredRoles;
     window.updateUserAvatar = updateUserAvatar;
+    window.resolveAvatarUrl = resolveAvatarUrl;
 
 });

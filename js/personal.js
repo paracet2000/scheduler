@@ -31,8 +31,10 @@ window.renderPersonalSettings = async function renderPersonalSettings() {
     const header = $('<div>', { class: 'profile-header' });
     const avatar = $('<div>', { class: 'profile-avatar' });
     if (profile?.avatar) {
-        console.log('profile.avatar Data: ',profile.avatar);
-        avatar.css('background-image', `url(${profile.avatar})`).addClass('has-image');
+        const resolved = typeof window.resolveAvatarUrl === 'function'
+            ? window.resolveAvatarUrl(profile.avatar)
+            : profile.avatar;
+        avatar.css('background-image', `url(${resolved})`).addClass('has-image');
     } else {
         const initial = (profile?.name || profile?.email || 'U').trim().charAt(0).toUpperCase();
         avatar.text(initial);
@@ -106,8 +108,10 @@ window.renderPersonalSettings = async function renderPersonalSettings() {
                 if (res.ok && json.data) {
                     const newAvatar = json.data.avatar;
                     if (newAvatar) {
-                        console.log('newAvatar Data: ',newAvatar);
-                        avatar.css('background-image', `url(${newAvatar})`).addClass('has-image').text('');
+                        const resolved = typeof window.resolveAvatarUrl === 'function'
+                            ? window.resolveAvatarUrl(newAvatar)
+                            : newAvatar;
+                        avatar.css('background-image', `url(${resolved})`).addClass('has-image').text('');
                         if (typeof window.updateUserAvatar === 'function') {
                             window.updateUserAvatar(newAvatar);
                         }

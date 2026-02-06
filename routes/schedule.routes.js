@@ -23,6 +23,13 @@ router.get(
   ctrl.mySchedule
 );
 
+// check booking window by ward
+router.get(
+  '/head/:wardId',
+  auth,
+  ctrl.bookingWindow
+);
+
 /* =========================
  * Head / Admin
  * ========================= */

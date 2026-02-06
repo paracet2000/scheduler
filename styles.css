@@ -135,8 +135,149 @@ body {
     display: flex;
     justify-content: flex-start;
     margin-bottom: 12px;
+    gap: 10px;
+    flex-wrap: wrap;
 }
 
+.schedule-month-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-right: 16px;
+}
+
+.schedule-nav-btn {
+    border: 1px solid var(--border);
+    background: #fff;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.schedule-month-label {
+    font-weight: 600;
+    min-width: 140px;
+}
+
+.schedule-grid {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    background: #fff;
+}
+
+.schedule-grid-header,
+.schedule-grid-body {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.schedule-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 10px;
+    border-top: 1px solid var(--border);
+    background: #f8fafc;
+    font-size: 12px;
+}
+
+.schedule-booking-banner {
+    margin-top: 12px;
+    padding: 24px;
+    text-align: center;
+    font-size: 20px;
+    font-weight: 600;
+    color: #0f172a;
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+
+.schedule-grid-cell {
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    min-height: 90px;
+    padding: 8px;
+    font-size: 13px;
+    background: #ffffff;
+    position: relative;
+}
+
+.schedule-grid-cell.header {
+    background: #f1f5f9;
+    font-weight: 600;
+    text-align: center;
+    min-height: 40px;
+}
+
+.schedule-grid-cell.empty {
+    background: #f8fafc;
+}
+
+.schedule-grid-cell.selected {
+    outline: 2px solid #2563eb;
+    outline-offset: -2px;
+}
+
+.schedule-grid-cell.col-sat {
+    background: #fffbeb;
+}
+
+.schedule-grid-cell.col-sun {
+    background: #fff5f5;
+}
+
+.schedule-grid-cell.header.col-sat {
+    background: #fff3cd;
+}
+
+.schedule-grid-cell.header.col-sun {
+    background: #ffe4e6;
+}
+
+.schedule-day {
+    font-weight: 600;
+    position: absolute;
+    top: 6px;
+    left: 8px;
+}
+
+.schedule-shifts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 18px;
+}
+
+.schedule-shift-input {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 6px;
+    font-size: 12px;
+}
+
+.schedule-shift-chip {
+    background: #e2e8f0;
+    color: #0f172a;
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 999px;
+}
+
+.schedule-editor {
+    margin-top: 12px;
+    padding: 12px;
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+
+.schedule-selected-date {
+    font-weight: 600;
+    margin-bottom: 8px;
+}
 .shift-code-list {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
