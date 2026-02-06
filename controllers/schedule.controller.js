@@ -1,6 +1,6 @@
 const Schedule = require('../model/schedule.model');
 const SchedulerHead = require('../model/scheduler.head.model');
-const UserWard = require('../model/user-ward.model');
+const WardMember = require('../model/ward-member.model');
 const Master = require('../model/base/master.schema');
 const AppError = require('../helpers/apperror');
 const asyncHandler = require('../helpers/async.handler');
@@ -253,7 +253,7 @@ exports.summaryByWard = asyncHandler(async (req, res) => {
     userWardQuery.position = { $in: positionList };
   }
 
-  const userWards = await UserWard.find(userWardQuery)
+  const userWards = await WardMember.find(userWardQuery)
     .populate('userId', 'name employeeCode avatar')
     .lean();
 

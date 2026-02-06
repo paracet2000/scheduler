@@ -14,7 +14,7 @@ const scheduleSchema = new mongoose.Schema(
 
     userWardId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'UserWard',
+      ref: 'WardMember',
       required: false
     },
 

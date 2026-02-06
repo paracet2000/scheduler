@@ -1,6 +1,6 @@
 const ChangeRequest = require('../model/changerequest.model');
 const Schedule = require('../model/schedule.model');
-const UserWard = require('../model/user-ward.model');
+const WardMember = require('../model/ward-member.model');
 const Master = require('../model/base/master.schema');
 const mail = require('../helpers/mail.helper');
 const notify = require('../helpers/notify.helper');
@@ -89,7 +89,7 @@ exports.create = async (req, res, next) => {
       };
 
       if (type === 'SWAP' && acceptedBy) {
-        const target = await UserWard.findOne({ userId: acceptedBy })
+        const target = await WardMember.findOne({ userId: acceptedBy })
           .populate('userId', 'name email phone')
           .lean();
         if (target?.userId) {
@@ -104,7 +104,7 @@ exports.create = async (req, res, next) => {
 
       if (type === 'CHANGE' && wardId) {
         // find same position + ward group
-        const myWard = await UserWard.findOne({ userId, wardId, status: 'ACTIVE' });
+        const myWard = await WardMember.findOne({ userId, wardId, status: 'ACTIVE' });
         const ward = await Master.findById(wardId).select('meta');
         const group = ward?.meta?.group || null;
         let wardIds = [wardId];
@@ -115,7 +115,7 @@ exports.create = async (req, res, next) => {
 
         const query = { wardId: { $in: wardIds }, status: 'ACTIVE' };
         if (myWard?.position) query.position = myWard.position;
-        const candidates = await UserWard.find(query).populate('userId', 'name email phone').lean();
+        const candidates = await WardMember.find(query).populate('userId', 'name email phone').lean();
         const candidateUsers = candidates.map(c => c.userId).filter(u => u && String(u._id) !== String(userId));
 
         for (const detail of scheduleDetails) {
@@ -138,7 +138,7 @@ exports.create = async (req, res, next) => {
       }
 
       if (type === 'LEAVE' && wardId) {
-        const heads = await UserWard.find({ wardId, roles: { $in: ['HEAD'] }, status: 'ACTIVE' })
+        const heads = await WardMember.find({ wardId, roles: { $in: ['HEAD'] }, status: 'ACTIVE' })
           .populate('userId', 'name email phone')
           .lean();
         for (const h of heads) {

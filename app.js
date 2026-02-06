@@ -31,7 +31,7 @@ app.use('/api/users', require('./routes/user.routes'));
 app.use('/api/masters', require('./routes/master.routes'));
 app.use('/api/master-types', require('./routes/masterType.routes'));
 app.use('/api/master-patterns', require('./routes/masterpattern.routes'));
-app.use('/api/user-wards', require('./routes/userward.routes'));
+app.use('/api/ward-members', require('./routes/wardmember.routes'));
 app.use('/api/user-shift-rates', require('./routes/user-shift-rate.routes'));
 app.use('/api/schedules', require('./routes/schedule.routes'));
 app.use('/api/scheduler-heads', require('./routes/scheduler.head.router'));

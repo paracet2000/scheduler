@@ -54,7 +54,7 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
 
     try {
         const [wardRes, posRes, shiftRes] = await Promise.all([
-            fetch(`${apiBase}/api/masters/WARD`, { headers: authHeaders() }),
+            fetch(`${apiBase}/api/ward-members/mine`, { headers: authHeaders() }),
             fetch(`${apiBase}/api/masters/POSITION`, { headers: authHeaders() }),
             fetch(`${apiBase}/api/masters/SHIFT`, { headers: authHeaders() })
         ]);

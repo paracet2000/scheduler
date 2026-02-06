@@ -27,7 +27,7 @@ router.get(
 router.get(
   '/user/:userId',
   auth,
-  // TODO: Re-enable authorizeWard when user-ward mapping is ready.
+  // TODO: Re-enable authorizeWard when ward-member mapping is ready.
   // authorizeWard(['HEAD', 'ADMIN']),
   ctrl.userScheduleById
 );
@@ -47,7 +47,7 @@ router.get(
 router.get(
   '/summary/:wardId',
   auth,
-  // TODO: Re-enable authorizeWard when user-ward mapping is ready.
+  // TODO: Re-enable authorizeWard when ward-member mapping is ready.
   // authorizeWard(['HEAD', 'ADMIN']),
   ctrl.summaryByWard
 );

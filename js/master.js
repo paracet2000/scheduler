@@ -240,7 +240,7 @@ window.renderSystemSettings = async function renderSystemSettings() {
         }).dxDataGrid('instance');
     };
 
-    const renderUserWardSection = async () => {
+    const renderWardMemberSection = async () => {
         systemContent.empty();
 
         const apiBase = window.BASE_URL || 'http://localhost:3000';
@@ -249,8 +249,8 @@ window.renderSystemSettings = async function renderSystemSettings() {
 
         try {
             const [metaRes, listRes] = await Promise.all([
-                fetch(`${apiBase}/api/user-wards/meta`, { headers: authHeaders() }),
-                fetch(`${apiBase}/api/user-wards`, { headers: authHeaders() })
+                fetch(`${apiBase}/api/ward-members/meta`, { headers: authHeaders() }),
+                fetch(`${apiBase}/api/ward-members`, { headers: authHeaders() })
             ]);
             const metaJson = await metaRes.json();
             const listJson = await listRes.json();
@@ -262,7 +262,7 @@ window.renderSystemSettings = async function renderSystemSettings() {
             systemContent.append(
                 $('<div>', {
                     class: 'settings-placeholder',
-                    text: err.message || 'Unable to load user wards.'
+                    text: err.message || 'Unable to load ward members.'
                 })
             );
             return;
@@ -278,7 +278,7 @@ window.renderSystemSettings = async function renderSystemSettings() {
             wardId: item.wardId?._id || item.wardId
         }));
 
-        const gridEl = $('<div>', { id: 'userWardGrid' });
+        const gridEl = $('<div>', { id: 'wardMemberGrid' });
         systemContent.append(gridEl);
 
         gridEl.dxDataGrid({
@@ -344,11 +344,6 @@ window.renderSystemSettings = async function renderSystemSettings() {
                     }
                 },
                 {
-                    dataField: 'isPrimary',
-                    caption: 'Primary',
-                    dataType: 'boolean'
-                },
-                {
                     dataField: 'status',
                     caption: 'Status',
                     lookup: {
@@ -362,10 +357,9 @@ window.renderSystemSettings = async function renderSystemSettings() {
                     wardId: e.data.wardId,
                     position: e.data.position,
                     roles: e.data.roles,
-                    isPrimary: e.data.isPrimary,
                     status: e.data.status
                 };
-                const res = await fetch(`${apiBase}/api/user-wards`, {
+                const res = await fetch(`${apiBase}/api/ward-members`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -385,7 +379,8 @@ window.renderSystemSettings = async function renderSystemSettings() {
             onRowUpdating: async (e) => {
                 const id = e.key;
                 const payload = { ...e.oldData, ...e.newData };
-                const res = await fetch(`${apiBase}/api/user-wards/${id}`, {
+                delete payload.isPrimary;
+                const res = await fetch(`${apiBase}/api/ward-members/${id}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -548,8 +543,8 @@ window.renderSystemSettings = async function renderSystemSettings() {
             await renderSchedulerHeadSection();
             return;
         }
-        if (item && item._type === 'userWard') {
-            await renderUserWardSection();
+        if (item && item._type === 'wardMember') {
+            await renderWardMemberSection();
             return;
         }
         if (item && item._type === 'userShiftRate') {
@@ -701,10 +696,10 @@ window.renderSystemSettings = async function renderSystemSettings() {
             _type: 'schedulerHead'
         },
         {
-            _id: 'USER_WARD',
-            name: 'User Ward',
-            meta: { color: '#64748b', icon: 'uw', hint: 'ผูกผู้ใช้กับ ward' },
-            _type: 'userWard'
+            _id: 'WARD_MEMBER',
+            name: 'Ward Member',
+            meta: { color: '#64748b', icon: 'wm', hint: 'ผูกผู้ใช้กับ ward' },
+            _type: 'wardMember'
         },
         {
             _id: 'USER_SHIFT_RATE',

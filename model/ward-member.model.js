@@ -1,4 +1,4 @@
-// models/UserWard.js
+// models/WardMember.js
 const mongoose = require('mongoose')
 
 const userWardSchema = new mongoose.Schema(
@@ -38,14 +38,6 @@ const userWardSchema = new mongoose.Schema(
         HR          : ดู attendance
         FINANCE     : คำนวณเงิน
       */
-    },
-
-    /**
-     * เป็น ward หลักของ user ไหม
-     */
-    isPrimary: {
-      type: Boolean,
-      default: false
     },
 
     status: {
@@ -94,4 +86,4 @@ userWardSchema.query.active = function () {
   return this.where({ status: 'ACTIVE' })
 }
 
-module.exports = mongoose.model('UserWard', userWardSchema)
+module.exports = mongoose.model('WardMember', userWardSchema, 'user_wards')

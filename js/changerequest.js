@@ -154,13 +154,13 @@ window.renderChangeRequest = async function renderChangeRequest() {
         const wardId = selected[0].wardId;
         if (!wardId) return;
 
-        const meRes = await fetch(`${apiBase}/api/user-wards/me?wardId=${wardId}`, { headers: authHeaders() });
+        const meRes = await fetch(`${apiBase}/api/ward-members/me?wardId=${wardId}`, { headers: authHeaders() });
         const meJson = await meRes.json();
         if (!meRes.ok) return;
         const myPosition = meJson?.data?.position;
 
         const positionQuery = myPosition ? `&position=${encodeURIComponent(myPosition)}` : '';
-        const res = await fetch(`${apiBase}/api/user-wards/users?wardId=${wardId}${positionQuery}&excludeSelf=1`, { headers: authHeaders() });
+        const res = await fetch(`${apiBase}/api/ward-members/users?wardId=${wardId}${positionQuery}&excludeSelf=1`, { headers: authHeaders() });
         const json = await res.json();
         if (!res.ok) return;
         swapCandidates = Array.isArray(json.data) ? json.data : [];

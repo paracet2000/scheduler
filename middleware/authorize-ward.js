@@ -1,5 +1,5 @@
 // middlewares/authorize-ward.middleware.js
-const UserWard = require('../model/user-ward.model')
+const WardMember = require('../model/ward-member.model')
 const AppError = require('../helpers/apperror')
 
 /**
@@ -20,7 +20,7 @@ module.exports = (...roles) => {
       return next(new AppError('Ward id is required', 400))
     }
 
-    const userWard = await UserWard.findOne({
+    const userWard = await WardMember.findOne({
       userId,
       wardId,
       status: 'ACTIVE',

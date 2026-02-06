@@ -1,4 +1,4 @@
-const UserWard = require('../model/user-ward.model');
+const WardMember = require('../model/ward-member.model');
 const User = require('../model/user.model');
 const Master = require('../model/base/master.schema');
 const asyncHandler = require('../helpers/async.handler');
@@ -12,7 +12,7 @@ exports.list = asyncHandler(async (req, res) => {
   if (userId) filter.userId = userId;
   if (status) filter.status = status;
 
-  const items = await UserWard.find(filter)
+  const items = await WardMember.find(filter)
     .populate('userId', 'name employeeCode email avatar')
     .populate('wardId', 'name code')
     .sort({ createdAt: -1 });
@@ -51,7 +51,7 @@ exports.usersByWard = asyncHandler(async (req, res) => {
   const query = { wardId: { $in: wardIds }, status: 'ACTIVE' };
   if (position) query.position = position;
 
-  const items = await UserWard.find(query)
+  const items = await WardMember.find(query)
     .populate('userId', 'name employeeCode email avatar')
     .lean();
 
@@ -68,7 +68,7 @@ exports.meByWard = asyncHandler(async (req, res) => {
   const { wardId } = req.query;
   if (!wardId) throw new AppError('wardId is required', 400);
 
-  const doc = await UserWard.findOne({
+  const doc = await WardMember.findOne({
     userId: req.user._id,
     wardId,
     status: 'ACTIVE'
@@ -79,17 +79,16 @@ exports.meByWard = asyncHandler(async (req, res) => {
 });
 
 exports.create = asyncHandler(async (req, res) => {
-  const { userId, wardId, position, roles, isPrimary, status } = req.body;
+  const { userId, wardId, position, roles, status } = req.body;
   if (!userId || !wardId || !position) {
     throw new AppError('userId, wardId and position are required', 400);
   }
 
-  const doc = await UserWard.create({
+  const doc = await WardMember.create({
     userId,
     wardId,
     position,
     roles: Array.isArray(roles) ? roles : ['USER'],
-    isPrimary: !!isPrimary,
     status: status || 'ACTIVE',
     createdBy: req.user?._id || null
   });
@@ -99,16 +98,31 @@ exports.create = asyncHandler(async (req, res) => {
 
 exports.update = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { position, roles, isPrimary, status } = req.body;
+  const { position, roles, status } = req.body;
 
-  const doc = await UserWard.findById(id);
+  const doc = await WardMember.findById(id);
   if (!doc) throw new AppError('User ward not found', 404);
 
   if (position !== undefined) doc.position = position;
   if (Array.isArray(roles)) doc.roles = roles;
-  if (isPrimary !== undefined) doc.isPrimary = !!isPrimary;
   if (status && ['ACTIVE', 'INACTIVE'].includes(status)) doc.status = status;
 
   await doc.save();
   response.success(res, doc, 'User ward updated');
+});
+
+exports.myWards = asyncHandler(async (req, res) => {
+  const items = await WardMember.find({
+    userId: req.user._id,
+    status: 'ACTIVE'
+  })
+    .populate('wardId', 'name code')
+    .lean();
+
+  const wards = items
+    .map(i => i.wardId)
+    .filter(Boolean)
+    .map(w => ({ _id: w._id, name: w.name, code: w.code }));
+
+  response.success(res, wards, 'My wards loaded');
 });
