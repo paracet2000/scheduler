@@ -59,8 +59,8 @@ exports.create = async (req, res, next) => {
       );
     }
 
-    // TODO: enable notify (email + SMS) after final policy and provider setup
-    const notifyEnabled = String(process.env.ENABLE_NOTIFY || '').toLowerCase() === 'true';
+    // Notify (email + SMS) - enabled by default, can be disabled via ENABLE_NOTIFY=false
+    const notifyEnabled = String(process.env.ENABLE_NOTIFY || 'true').toLowerCase() === 'true';
     if (notifyEnabled) {
       const scheduleDocs = await Promise.all(
         affectedSchedules.map(async (item) => {
@@ -240,6 +240,8 @@ exports.approve = async (req, res, next) => {
       throw new AppError('No replacement user', 400);
     }
 
+    const notifyEnabled = String(process.env.ENABLE_NOTIFY || 'true').toLowerCase() === 'true';
+
     /* -------- apply to schedules -------- */
     for (const item of request.affectedSchedules) {
       const schedule = await Schedule.findById(item.scheduleId);
@@ -294,6 +296,56 @@ exports.approve = async (req, res, next) => {
       );
     }
 
+    if (notifyEnabled) {
+      const scheduleDocs = await Promise.all(
+        request.affectedSchedules.map(async (item) => {
+          if (!item?.scheduleId) return null;
+          return Schedule.findById(item.scheduleId).select('wardId workDate shiftCode').lean();
+        })
+      );
+      const scheduleDetails = request.affectedSchedules.map((item, idx) => {
+        const doc = scheduleDocs[idx];
+        return {
+          wardId: doc?.wardId,
+          workDate: doc?.workDate || item?.date,
+          shiftCode: doc?.shiftCode || item?.shiftCode
+        };
+      }).filter(d => d.workDate && d.shiftCode);
+
+      const notifyUser = async (user, message) => {
+        if (user?.email) {
+          await mail.sendChangeRequestEmail(user.email, 'Change Request Approved', `<p>${message}</p>`);
+        }
+        if (user?.phone) {
+          await notify.sendSms(user.phone, message);
+        }
+      };
+
+      const requestor = await WardMember.findOne({ userId: request.requestedBy })
+        .populate('userId', 'name email phone')
+        .lean();
+
+      const acceptor = request.acceptedBy
+        ? await WardMember.findOne({ userId: request.acceptedBy }).populate('userId', 'name email phone').lean()
+        : null;
+
+      const detail = scheduleDetails[0];
+      const dateText = detail?.workDate ? new Date(detail.workDate).toDateString() : '';
+
+      if (requestor?.userId) {
+        await notifyUser(
+          requestor.userId,
+          `Your change request has been approved for ${detail?.shiftCode || ''} on ${dateText}`
+        );
+      }
+      if (acceptor?.userId) {
+        await notifyUser(
+          acceptor.userId,
+          `Change request approved: ${detail?.shiftCode || ''} on ${dateText}`
+        );
+      }
+    }
+
     res.json({
       result: true,
       message: 'Request approved',
@@ -318,6 +370,8 @@ exports.reject = async (req, res, next) => {
       throw new AppError('Request already processed', 400);
     }
 
+    const notifyEnabled = String(process.env.ENABLE_NOTIFY || 'true').toLowerCase() === 'true';
+
     request.status = 'REJECTED';
     request.rejectedBy = req.user._id;
     request.rejectedAt = new Date();
@@ -333,6 +387,56 @@ exports.reject = async (req, res, next) => {
         { _id: { $in: rejectedIds } },
         { $set: { 'meta.changeStatus': 'REJECTED' } }
       );
+    }
+
+    if (notifyEnabled) {
+      const scheduleDocs = await Promise.all(
+        request.affectedSchedules.map(async (item) => {
+          if (!item?.scheduleId) return null;
+          return Schedule.findById(item.scheduleId).select('wardId workDate shiftCode').lean();
+        })
+      );
+      const scheduleDetails = request.affectedSchedules.map((item, idx) => {
+        const doc = scheduleDocs[idx];
+        return {
+          wardId: doc?.wardId,
+          workDate: doc?.workDate || item?.date,
+          shiftCode: doc?.shiftCode || item?.shiftCode
+        };
+      }).filter(d => d.workDate && d.shiftCode);
+
+      const notifyUser = async (user, message) => {
+        if (user?.email) {
+          await mail.sendChangeRequestEmail(user.email, 'Change Request Rejected', `<p>${message}</p>`);
+        }
+        if (user?.phone) {
+          await notify.sendSms(user.phone, message);
+        }
+      };
+
+      const requestor = await WardMember.findOne({ userId: request.requestedBy })
+        .populate('userId', 'name email phone')
+        .lean();
+
+      const acceptor = request.acceptedBy
+        ? await WardMember.findOne({ userId: request.acceptedBy }).populate('userId', 'name email phone').lean()
+        : null;
+
+      const detail = scheduleDetails[0];
+      const dateText = detail?.workDate ? new Date(detail.workDate).toDateString() : '';
+
+      if (requestor?.userId) {
+        await notifyUser(
+          requestor.userId,
+          `Your change request has been rejected for ${detail?.shiftCode || ''} on ${dateText}`
+        );
+      }
+      if (acceptor?.userId) {
+        await notifyUser(
+          acceptor.userId,
+          `Change request rejected: ${detail?.shiftCode || ''} on ${dateText}`
+        );
+      }
     }
 
     res.json({
@@ -401,6 +505,8 @@ exports.accept = async (req, res, next) => {
       throw new AppError('You are not the designated replacement', 403);
     }
 
+    const notifyEnabled = String(process.env.ENABLE_NOTIFY || 'true').toLowerCase() === 'true';
+
     request.meta = {
       ...request.meta,
       acceptedAt: new Date(),
@@ -417,6 +523,45 @@ exports.accept = async (req, res, next) => {
         { _id: { $in: scheduleIds } },
         { $set: { 'meta.changeStatus': 'ACCEPTED' } }
       );
+    }
+
+    if (notifyEnabled) {
+      const scheduleDocs = await Promise.all(
+        request.affectedSchedules.map(async (item) => {
+          if (!item?.scheduleId) return null;
+          return Schedule.findById(item.scheduleId).select('wardId workDate shiftCode').lean();
+        })
+      );
+      const scheduleDetails = request.affectedSchedules.map((item, idx) => {
+        const doc = scheduleDocs[idx];
+        return {
+          wardId: doc?.wardId,
+          workDate: doc?.workDate || item?.date,
+          shiftCode: doc?.shiftCode || item?.shiftCode
+        };
+      }).filter(d => d.workDate && d.shiftCode);
+
+      const notifyUser = async (user, message) => {
+        if (user?.email) {
+          await mail.sendChangeRequestEmail(user.email, 'Change Request Accepted', `<p>${message}</p>`);
+        }
+        if (user?.phone) {
+          await notify.sendSms(user.phone, message);
+        }
+      };
+
+      const requestedBy = await WardMember.findOne({ userId: request.requestedBy })
+        .populate('userId', 'name email phone')
+        .lean();
+
+      if (requestedBy?.userId) {
+        const detail = scheduleDetails[0];
+        const dateText = detail?.workDate ? new Date(detail.workDate).toDateString() : '';
+        await notifyUser(
+          requestedBy.userId,
+          `Your change request has been accepted for ${detail?.shiftCode || ''} on ${dateText}`
+        );
+      }
     }
 
     res.json({

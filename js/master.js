@@ -8,7 +8,8 @@ window.renderSystemSettings = async function renderSystemSettings() {
     const roles = typeof window.getStoredRoles === 'function' ? window.getStoredRoles() : [];
     const isAdmin = roles.includes('admin');
     const isHead = roles.includes('head');
-    const canManageSystem = isAdmin || isHead;
+    const isHr = roles.includes('hr');
+    const canManageSystem = isAdmin || isHead || isHr;
 
     $('#systemSettings').empty();
 
@@ -275,7 +276,8 @@ window.renderSystemSettings = async function renderSystemSettings() {
         const gridData = items.map(item => ({
             ...item,
             userId: item.userId?._id || item.userId,
-            wardId: item.wardId?._id || item.wardId
+            wardId: item.wardId?._id || item.wardId,
+            wardGroup: item.wardId?.meta?.group || ''
         }));
 
         const gridEl = $('<div>', { id: 'wardMemberGrid' });
@@ -317,6 +319,11 @@ window.renderSystemSettings = async function renderSystemSettings() {
                     validationRules: [{ type: 'required' }]
                 },
                 {
+                    dataField: 'wardGroup',
+                    caption: 'Group',
+                    allowEditing: false
+                },
+                {
                     dataField: 'position',
                     caption: 'Position',
                     lookup: {
@@ -350,7 +357,18 @@ window.renderSystemSettings = async function renderSystemSettings() {
                         dataSource: ['ACTIVE', 'INACTIVE']
                     }
                 }
-            ],
+            ].concat(String(typeCode).toUpperCase() === 'SHIFT'
+                ? [
+                    {
+                        dataField: 'meta.timeFrom',
+                        caption: 'Time From'
+                    },
+                    {
+                        dataField: 'meta.timeTo',
+                        caption: 'Time To'
+                    }
+                ]
+                : []),
             onRowInserting: async (e) => {
                 const payload = {
                     userId: e.data.userId,
@@ -536,6 +554,339 @@ window.renderSystemSettings = async function renderSystemSettings() {
         });
     };
 
+    const renderCodeMappingSection = async () => {
+        systemContent.empty();
+
+        const apiBase = window.BASE_URL || 'http://localhost:3000';
+        let meta = {};
+        let items = [];
+
+        try {
+            const [metaRes, listRes] = await Promise.all([
+                fetch(`${apiBase}/api/code-mappings/meta`, { headers: authHeaders() }),
+                fetch(`${apiBase}/api/code-mappings`, { headers: authHeaders() })
+            ]);
+            const metaJson = await metaRes.json();
+            const listJson = await listRes.json();
+            if (!metaRes.ok) throw new Error(metaJson.message || 'Failed to load meta');
+            if (!listRes.ok) throw new Error(listJson.message || 'Failed to load code mappings');
+            meta = metaJson.data || {};
+            items = Array.isArray(listJson.data) ? listJson.data : [];
+        } catch (err) {
+            systemContent.append(
+                $('<div>', {
+                    class: 'settings-placeholder',
+                    text: err.message || 'Unable to load code mappings.'
+                })
+            );
+            return;
+        }
+
+        const users = Array.isArray(meta.users) ? meta.users : [];
+
+        const mappingByUser = new Map(
+            items.map(item => [String(item.userId?._id || item.userId), item])
+        );
+
+        const gridData = users.map(user => {
+            const map = mappingByUser.get(String(user._id));
+            return {
+                _id: map?._id || null,
+                userId: user._id,
+                deviceEmpCode: map?.deviceEmpCode || '',
+                status: map?.status || 'ACTIVE'
+            };
+        });
+
+        const gridEl = $('<div>', { id: 'codeMappingGrid' });
+        systemContent.append(gridEl);
+
+        gridEl.dxDataGrid({
+            dataSource: gridData,
+            keyExpr: 'userId',
+            showBorders: true,
+            columnAutoWidth: true,
+            paging: { pageSize: 10 },
+            editing: {
+                mode: 'row',
+                allowUpdating: true,
+                allowDeleting: false
+            },
+            columns: [
+                {
+                    dataField: 'userId',
+                    caption: 'User',
+                    lookup: {
+                        dataSource: users,
+                        valueExpr: '_id',
+                        displayExpr: (item) => item ? `${item.employeeCode || ''} ${item.name || ''}`.trim() : ''
+                    },
+                    allowEditing: false
+                },
+                {
+                    dataField: 'deviceEmpCode',
+                    caption: 'Device Emp Code',
+                    validationRules: [{ type: 'required' }]
+                },
+                {
+                    dataField: 'status',
+                    caption: 'Status',
+                    lookup: {
+                        dataSource: ['ACTIVE', 'INACTIVE']
+                    }
+                }
+            ],
+            onRowUpdating: async (e) => {
+                const payload = { ...e.oldData, ...e.newData };
+                const isUpdate = !!payload._id;
+                const url = isUpdate
+                    ? `${apiBase}/api/code-mappings/${payload._id}`
+                    : `${apiBase}/api/code-mappings`;
+                const method = isUpdate ? 'PUT' : 'POST';
+
+                const res = await fetch(url, {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...authHeaders()
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const json = await res.json();
+                if (!res.ok) {
+                    e.cancel = true;
+                    DevExpress.ui.notify(json.message || (isUpdate ? 'Update failed' : 'Create failed'), 'error', 3000);
+                    return;
+                }
+                e.newData._id = json.data?._id || payload._id;
+                DevExpress.ui.notify(isUpdate ? 'Updated' : 'Created', 'success', 2000);
+            }
+        });
+        const wrap = $('<div>', { class: 'attendance-sync' });
+        const formEl = $('<div>', { id: 'attendanceSyncForm' });
+        const logFilters = $('<div>', { class: 'attendance-log-filters' });
+        const logArea = $('<div>', { class: 'attendance-log' });
+
+        wrap.append(formEl, logFilters, logArea);
+        systemContent.append(wrap);
+
+        let parsedRows = [];
+        let mappedRows = [];
+        let unmapped = [];
+
+        const toSeconds = (time) => {
+            const parts = String(time || '').split(':').map(Number);
+            if (parts.length < 2) return 0;
+            const [h, m, s = 0] = parts;
+            return (h * 3600) + (m * 60) + s;
+        };
+
+        const parseDate = (raw) => {
+            const parts = String(raw || '').split('/');
+            if (parts.length !== 3) return null;
+            const [mm, dd, yy] = parts.map(p => p.padStart(2, '0'));
+            const year = Number(yy) < 100 ? `20${yy}` : yy;
+            return `${year}-${mm}-${dd}`;
+        };
+
+        const logEntries = [];
+        const logOptions = {
+            info: true,
+            warn: true,
+            error: true,
+            success: true
+        };
+
+        const filterItem = (key, label) => {
+            const id = `attendance-log-${key}`;
+            const wrap = $('<label>', { class: 'attendance-log-filter' });
+            const input = $('<input>', { type: 'checkbox', id, checked: true });
+            input.on('change', () => {
+                logOptions[key] = input.is(':checked');
+            });
+            wrap.append(input, $('<span>', { text: label }));
+            return wrap;
+        };
+        logFilters.append(
+            filterItem('info', 'Info'),
+            filterItem('success', 'Success'),
+            filterItem('warn', 'Warning'),
+            filterItem('error', 'Error')
+        );
+        const log = (message, type = 'info') => {
+            if (!logOptions[type]) return;
+            const line = $('<div>', { class: `attendance-log-line ${type}`, text: message });
+            logArea.append(line);
+            logEntries.push(`[${type.toUpperCase()}] ${message}`);
+        };
+
+        const loadMappings = async () => {
+            const res = await fetch(`${apiBase}/api/code-mappings?status=ACTIVE`, { headers: authHeaders() });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.message || 'Failed to load code mappings');
+            const items = Array.isArray(json.data) ? json.data : [];
+            const map = new Map();
+            items.forEach(item => {
+                const code = String(item.deviceEmpCode || '').trim();
+                const userId = item.userId?._id || item.userId;
+                if (!code || !userId) return;
+                if (!map.has(code)) {
+                    map.set(code, userId);
+                }
+            });
+            return map;
+        };
+
+        const handleFile = async (file) => {
+            if (!file) return;
+            const text = await file.text();
+            const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+            logArea.empty();
+            logEntries.length = 0;
+            parsedRows = lines.map(line => {
+                const [empcode, date, time, machineNo] = line.split(',').map(v => v.trim());
+                return { empcode, date, time, machineNo };
+            }).filter(r => r.empcode && r.date && r.time);
+
+            const mapping = await loadMappings();
+            unmapped = [];
+            const grouped = new Map();
+
+            parsedRows.forEach(r => {
+                const date = parseDate(r.date);
+                if (!date) return;
+                const userId = mapping.get(r.empcode);
+                if (!userId) {
+                    if (!unmapped.includes(r.empcode)) unmapped.push(r.empcode);
+                    return;
+                }
+                const key = `${userId}|${date}`;
+                const current = grouped.get(key) || {
+                    userId,
+                    date,
+                    deviceEmpCode: r.empcode,
+                    actualIn: r.time,
+                    actualOut: r.time,
+                    punchCount: 0,
+                    singleTime: r.time
+                };
+                current.punchCount += 1;
+                current.singleTime = r.time;
+                if (toSeconds(r.time) < toSeconds(current.actualIn)) current.actualIn = r.time;
+                if (toSeconds(r.time) > toSeconds(current.actualOut)) current.actualOut = r.time;
+                grouped.set(key, current);
+            });
+
+            mappedRows = Array.from(grouped.values());
+            log(`Rows: ${parsedRows.length}`);
+            log(`Mapped (unique user/date): ${mappedRows.length}`);
+            log(`Unmapped codes: ${unmapped.length ? unmapped.join(', ') : '-'}`, unmapped.length ? 'warn' : 'info');
+            const singlePunch = mappedRows.filter(r => r.punchCount === 1);
+            if (singlePunch.length) {
+                log(`Single punch rows: ${singlePunch.length}`, 'warn');
+            }
+        };
+
+        const syncNow = async () => {
+            if (!mappedRows.length) {
+                DevExpress.ui.notify('No mapped rows to sync', 'warning', 2000);
+                log('No mapped rows to sync', 'warn');
+                return;
+            }
+            const res = await fetch(`${apiBase}/api/attendance/sync`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...authHeaders()
+                },
+                body: JSON.stringify({ rows: mappedRows })
+            });
+            const json = await res.json();
+            if (!res.ok) {
+                DevExpress.ui.notify(json.message || 'Sync failed', 'error', 3000);
+                log(`Sync failed: ${json.message || 'Unknown error'}`, 'error');
+                return;
+            }
+            DevExpress.ui.notify('Synced', 'success', 2000);
+            log(`Sync success. Matched: ${json.data?.matched || 0}, Modified: ${json.data?.modified || 0}`, 'success');
+            const noSchedule = Array.isArray(json.data?.noSchedule) ? json.data.noSchedule : [];
+            if (noSchedule.length) {
+                log(`No schedule found: ${noSchedule.length}`, 'error');
+                noSchedule.slice(0, 20).forEach(item => {
+                    log(`No schedule for user ${item.userId} on ${item.date}`, 'error');
+                });
+            }
+        };
+
+        const downloadLog = () => {
+            if (!logEntries.length) {
+                DevExpress.ui.notify('No log to download', 'warning', 2000);
+                return;
+            }
+            const blob = new Blob([logEntries.join('\n')], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `attendance-sync-log-${Date.now()}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        };
+
+        const formData = { file: null };
+        formEl.dxForm({
+            formData,
+            colCount: 1,
+            items: [
+                {
+                    itemType: 'group',
+                    items: [
+                        { itemType: 'label', text: 'Sync Time Attendance (CSV)' }
+                    ]
+                },
+                {
+                    dataField: 'file',
+                    label: { text: 'CSV File' },
+                    editorType: 'dxFileUploader',
+                    editorOptions: {
+                        accept: '.csv',
+                        uploadMode: 'useForm',
+                        selectButtonText: 'Select file',
+                        onValueChanged: (e) => {
+                            const f = e.value && e.value[0];
+                            handleFile(f);
+                        }
+                    }
+                },
+                {
+                    itemType: 'group',
+                    caption: 'Actions',
+                    colCount: 2,
+                    items: [
+                        {
+                            itemType: 'button',
+                            horizontalAlignment: 'left',
+                            buttonOptions: {
+                                text: 'Sync',
+                                type: 'default',
+                                onClick: syncNow
+                            }
+                        },
+                        {
+                            itemType: 'button',
+                            horizontalAlignment: 'left',
+                            buttonOptions: {
+                                text: 'Download Log',
+                                type: 'normal',
+                                onClick: downloadLog
+                            }
+                        }
+                    ]
+                }
+            ]
+        });
+    };
 
     const renderSystemSection = async (item) => {
         systemContent.empty();
@@ -549,6 +900,10 @@ window.renderSystemSettings = async function renderSystemSettings() {
         }
         if (item && item._type === 'userShiftRate') {
             await renderUserShiftRateSection();
+            return;
+        }
+        if (item && item._type === 'codeMapping') {
+            await renderCodeMappingSection();
             return;
         }
         const meta = item.meta || {};
@@ -688,7 +1043,7 @@ window.renderSystemSettings = async function renderSystemSettings() {
         }).dxDataGrid('instance');
     };
 
-    const systemItems = [
+    const baseSystemItems = [
         {
             _id: 'SCHEDULER_HEAD',
             name: 'Scheduler Head',
@@ -707,13 +1062,32 @@ window.renderSystemSettings = async function renderSystemSettings() {
             meta: { color: '#22c55e', icon: 'sr', hint: 'เรทต่อคน/รหัสเวร' },
             _type: 'userShiftRate'
         },
+        {
+            _id: 'CODE_MAPPING',
+            name: 'Code Mapping',
+            meta: { color: '#94a3b8', icon: 'cm', hint: 'รหัสเครื่องสแกน ↔ ผู้ใช้' },
+            _type: 'codeMapping'
+        },
         ...items
     ];
+
+    const systemItems = (isHr && !(isAdmin || isHead))
+        ? baseSystemItems.filter(i => i._type === 'codeMapping')
+        : baseSystemItems;
+
+    const targetType = window.systemSettingsTarget;
+    if (targetType) {
+        window.systemSettingsTarget = null;
+    }
+
+    const activeType = targetType && systemItems.some(i => i._type === targetType)
+        ? targetType
+        : (systemItems[0]?._type || '');
 
     systemItems.forEach((item, index) => {
         const meta = item.meta || {};
         const btn = $('<button>', {
-            class: `system-settings-item${index === 0 ? ' active' : ''}`,
+            class: `system-settings-item${item._type === activeType ? ' active' : ''}`,
             click: () => {
                 systemMenu.find('.system-settings-item').removeClass('active');
                 btn.addClass('active');
@@ -735,10 +1109,10 @@ window.renderSystemSettings = async function renderSystemSettings() {
 
         btn.append(iconBadge, $('<div>').append(label, sub));
         systemMenu.append(btn);
-        if (index === 0) renderSystemSection(item);
+        if (item._type === activeType) renderSystemSection(item);
     });
 
-    if (!items.length) {
+    if (!systemItems.length) {
         systemContent.append(
             $('<div>', {
                 class: 'settings-placeholder',

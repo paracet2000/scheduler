@@ -1,0 +1,34 @@
+# Scheduler
+
+## Setup
+Seed ขั้นพื้นฐานสำหรับระบบใหม่ (เรียงตาม dependency):
+
+1. **Master Types**
+   - `WARD`, `SHIFT`, `POSITION`, `SHIFT_NOTATION`
+2. **Master Data**
+   - `WARD` (รวม `meta.group`)
+   - `SHIFT` (รวม `meta` เช่น color/bucket/rate)
+   - `POSITION`
+3. **Master Pattern**
+   - Pattern เวรพื้นฐาน
+4. **Users**
+   - อย่างน้อย 1 `admin` + 1 `head` + 1 `user`
+5. **Ward Member**
+   - ผูก `userId` + `wardId` + `position` (+ `roles`)
+6. **Scheduler Head**
+   - เปิดช่วง booking ต่อ ward
+7. **User Shift Rate** (ถ้าคำนวณเงิน)
+   - กำหนด rate ต่อ user + shift
+
+## New Employee
+ขั้นตอนเพิ่มพยาบาล 1 คน:
+
+1. **สร้าง User**
+   - `name`, `email`, `password`, `phone`
+   - `roles`: อย่างน้อย `user` (ถ้าเป็นหัวหน้าเพิ่ม `head`)
+2. **Ward Member**
+   - เพิ่ม record ใน ward-member: `userId`, `wardId`, `position`, `roles`
+3. **User Shift Rate** (ถ้าใช้เงิน)
+   - ใส่ rate ต่อ shift สำหรับ user นี้
+4. **ตรวจ Email/Phone**
+   - เพื่อให้สร้าง Change Request และ Notify ได้

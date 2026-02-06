@@ -14,7 +14,7 @@ exports.list = asyncHandler(async (req, res) => {
 
   const items = await WardMember.find(filter)
     .populate('userId', 'name employeeCode email avatar')
-    .populate('wardId', 'name code')
+    .populate('wardId', 'name code meta')
     .sort({ createdAt: -1 });
 
   response.success(res, items, 'User wards loaded');

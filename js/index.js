@@ -218,6 +218,16 @@ $(document).ready(function() {
             }
             dropdownMenu.hide(); // Collapse the dropdown menu after click
         } },
+        { id: 'menuTimeAttendanceSync', text: 'Time Attendance Sync', action: () => {
+            window.systemSettingsTarget = 'codeMapping';
+            if (typeof window.renderSystemSettings === 'function') {
+                window.renderSystemSettings();
+            } else {
+                showPage('settingsSystem');
+                $('#systemSettings').html('<div class="settings-placeholder">Time Attendance Sync is not available.</div>');
+            }
+            dropdownMenu.hide();
+        } },
         { id: 'menuLogin', text: 'Login', action: () => {
             renderLogin();
             dropdownMenu.hide(); // Collapse the dropdown menu after click
@@ -272,14 +282,18 @@ $(document).ready(function() {
         const roles = getStoredRoles();
         const isAdmin = roles.includes('admin');
         const isHead = roles.includes('head');
+        const isHr = roles.includes('hr');
         if (menuButtons.menuSettingsSystem) {
-            menuButtons.menuSettingsSystem.toggle(isLoggedIn && (isAdmin || isHead));
+            menuButtons.menuSettingsSystem.toggle(isLoggedIn && (isAdmin || isHead || isHr));
         }
         if (menuButtons.menuScheduleSummary) {
             menuButtons.menuScheduleSummary.toggle(isLoggedIn && isHead);
         }
         if (menuButtons.menuUserManagement) {
             menuButtons.menuUserManagement.toggle(isLoggedIn && isAdmin);
+        }
+        if (menuButtons.menuTimeAttendanceSync) {
+            menuButtons.menuTimeAttendanceSync.toggle(isLoggedIn && isHr);
         }
     }
 

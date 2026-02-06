@@ -714,6 +714,64 @@ body {
     width: 100%;
 }
 
+/* Attendance sync */
+.attendance-sync {
+    margin-top: 16px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: #ffffff;
+}
+
+.attendance-sync .dx-form {
+    max-width: 520px;
+}
+
+.attendance-sync .dx-field-item-label {
+    font-weight: 600;
+}
+
+.attendance-log-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 10px 0 6px;
+}
+
+.attendance-log-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+}
+
+.attendance-log {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    min-height: 80px;
+    max-height: 220px;
+    overflow: auto;
+    font-size: 12px;
+}
+
+.attendance-log-line {
+    margin-bottom: 4px;
+}
+
+.attendance-log-line.success {
+    color: #16a34a;
+}
+
+.attendance-log-line.warn {
+    color: #d97706;
+}
+
+.attendance-log-line.error {
+    color: #dc2626;
+}
+
 /* Profile page */
 .profile-header {
     display: flex;

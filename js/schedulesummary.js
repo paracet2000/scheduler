@@ -101,23 +101,23 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
         valueExpr: '_id',
         placeholder: 'Select ward',
         width: 220,
-        value: initialFilters.wardId || null,
+        value: initialFilters.wardId || (wards[0]?._id || null),
         onInitialized(e) { wardInstance = e.component; }
     });
 
-    const positionItems = [{ code: 'ALL', name: 'All' }, ...positions];
+    const positionItems = [{ code: 'ALL', name: '(All)' }, ...positions];
     positionEl.dxTagBox({
         items: positionItems,
-        displayExpr: 'code',
+        displayExpr: 'name',
         valueExpr: 'code',
         placeholder: 'Select positions',
         width: 260,
-        value: Array.isArray(initialFilters.positions) ? initialFilters.positions : [],
+        value: Array.isArray(initialFilters.positions) ? initialFilters.positions : ['ALL'],
         onInitialized(e) { positionInstance = e.component; },
         onValueChanged(e) {
             const value = Array.isArray(e.value) ? e.value : [];
-            if (value.includes('ALL') && value.length > 1) {
-                const filtered = value.filter(v => v !== 'ALL');
+            if (value.includes('(All)') && value.length > 1) {
+                const filtered = value.filter(v => v !== '(All)');
                 e.component.option('value', filtered);
             }
         }
@@ -323,7 +323,7 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
         });
 
         const selectedPositions = (positionInstance ? positionInstance.option('value') : [])
-            .filter(p => p && p !== 'ALL');
+            .filter(p => p && p !== '(All)');
         const positionList = selectedPositions.length ? selectedPositions : allPositions;
 
         const buildPositionSummary = (rows, positionsToShow) => {
@@ -455,7 +455,7 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
         const monthVal = selectedDate.getMonth() + 1;
         const yearVal = selectedDate.getFullYear();
         const posVal = positionInstance ? positionInstance.option('value') : [];
-        const normalizedPos = Array.isArray(posVal) ? posVal.filter(v => v && v !== 'ALL') : [];
+        const normalizedPos = Array.isArray(posVal) ? posVal.filter(v => v && v !== '(All)') : [];
         const posQuery = normalizedPos.length ? `&positions=${normalizedPos.join(',')}` : '';
 
         const res = await fetch(

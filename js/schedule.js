@@ -51,7 +51,7 @@ window.renderSchedule = async function renderSchedule(options = {}) {
     };
 
     const [wardRes, shiftRes, myRes, patternRes, meRes, inboxRes] = await Promise.all([
-        fetch(`${apiBase}/api/masters/WARD`, { headers: authHeaders }),
+        fetch(`${apiBase}/api/ward-members/mine`, { headers: authHeaders }),
         fetch(`${apiBase}/api/masters/SHIFT`, { headers: authHeaders }),
         loadSchedules(selectedDate),
         fetch(`${apiBase}/api/master-patterns`, { headers: authHeaders }),
@@ -130,14 +130,19 @@ window.renderSchedule = async function renderSchedule(options = {}) {
         }
     });
 
-    const wardItems = [{ _id: 'ALL', name: 'All Wards' }, ...wards];
+    const wardItems = [...wards];
+    if (editWardId && !wardItems.some(w => String(w._id) === String(editWardId))) {
+        const fromSchedule = schedules.find(s => String(s.wardId?._id || s.wardId) === String(editWardId));
+        const wardName = fromSchedule?.wardId?.name || `Ward ${String(editWardId).slice(-4)}`;
+        wardItems.push({ _id: editWardId, name: wardName });
+    }
     let wardFilterInstance;
     let patternFilterInstance;
     let bookingOpen = false;
 
     const checkBookingWindow = async () => {
-        const wardId = wardFilterInstance ? wardFilterInstance.option('value') : 'ALL';
-        if (!wardId || wardId === 'ALL') {
+        const wardId = wardFilterInstance ? wardFilterInstance.option('value') : null;
+        if (!wardId) {
             bookingOpen = false;
             bookingBanner.text('กรุณาเลือก Ward ก่อน').show();
             return;
@@ -156,11 +161,16 @@ window.renderSchedule = async function renderSchedule(options = {}) {
         bookingBanner.hide();
     };
 
+    if (!wardItems.length) {
+        scheduleEl.html('<div class="settings-placeholder">No ward membership found.</div>');
+        return;
+    }
+
     wardSelectEl.dxSelectBox({
         items: wardItems,
         displayExpr: 'name',
         valueExpr: '_id',
-        value: editWardId || 'ALL',
+        value: editWardId || (wardItems[0]?._id || null),
         width: 220,
         placeholder: 'Select ward',
         disabled: lockWard,
@@ -196,8 +206,8 @@ window.renderSchedule = async function renderSchedule(options = {}) {
                 DevExpress.ui.notify('Please select a pattern', 'warning', 2000);
                 return;
             }
-            const wardId = wardFilterInstance ? wardFilterInstance.option('value') : 'ALL';
-            if (!wardId || wardId === 'ALL') {
+            const wardId = wardFilterInstance ? wardFilterInstance.option('value') : null;
+            if (!wardId) {
                 DevExpress.ui.notify('Please select a ward', 'warning', 2000);
                 return;
             }
@@ -279,18 +289,8 @@ window.renderSchedule = async function renderSchedule(options = {}) {
     };
 
     const getCodesForDate = (date) => {
-        const wardId = wardFilterInstance ? wardFilterInstance.option('value') : 'ALL';
-        const keyDate = new Date(date).toDateString();
-        if (!wardId || wardId === 'ALL') {
-            // aggregate all wards for that date
-            const codes = [];
-            for (const [key, value] of scheduleMap.entries()) {
-                if (key.startsWith(keyDate + '|')) {
-                    codes.push(...value);
-                }
-            }
-            return codes;
-        }
+        const wardId = wardFilterInstance ? wardFilterInstance.option('value') : null;
+        if (!wardId) return [];
         const key = getKey(date, wardId);
         return scheduleMap.get(key) || [];
     };
@@ -339,7 +339,7 @@ window.renderSchedule = async function renderSchedule(options = {}) {
                 const label = $('<div>', { class: 'schedule-day', text: dayNum });
                 const shiftsEl = $('<div>', { class: 'schedule-shifts' });
                 const codes = getCodesForDate(cellDate);
-                const wardId = wardFilterInstance ? wardFilterInstance.option('value') : 'ALL';
+                const wardId = wardFilterInstance ? wardFilterInstance.option('value') : null;
                 const cellKey = getKey(cellDate, wardId);
                 const items = scheduleItemMap.get(cellKey) || [];
                 items.forEach(item => {
@@ -349,9 +349,7 @@ window.renderSchedule = async function renderSchedule(options = {}) {
                     const dateKey = cellDate.toDateString();
                     const codeKey = String(c).toUpperCase();
                     const metaKey = `${dateKey}|${wardId || 'ALL'}|${codeKey}`;
-                    const changeMeta = wardId === 'ALL'
-                        ? (scheduleMetaByDateCode.get(`${dateKey}|${codeKey}`) || {})
-                        : (scheduleMetaMap.get(metaKey) || {});
+                    const changeMeta = scheduleMetaMap.get(metaKey) || {};
                     if (changeMeta.changeStatus === 'OPEN') {
                         chip.addClass('schedule-shift-pending');
                     }
@@ -366,7 +364,7 @@ window.renderSchedule = async function renderSchedule(options = {}) {
                         chip.append(statusText);
                     }
 
-                    if (!editUserId && wardId !== 'ALL' && inboxScheduleMap.has(item.id)) {
+                    if (!editUserId && wardId && inboxScheduleMap.has(item.id)) {
                         const acceptBtn = $('<button>', { class: 'schedule-accept-btn', text: 'Accept' });
                         acceptBtn.on('click', async (e) => {
                             e.stopPropagation();
@@ -412,7 +410,7 @@ window.renderSchedule = async function renderSchedule(options = {}) {
             return;
         }
         const counts = {};
-        const wardId = wardFilterInstance ? wardFilterInstance.option('value') : 'ALL';
+        const wardId = wardFilterInstance ? wardFilterInstance.option('value') : null;
         for (let d = 1; d <= daysInMonth; d++) {
             const date = new Date(year, month, d);
             const codes = getCodesForDate(date);
@@ -455,8 +453,8 @@ window.renderSchedule = async function renderSchedule(options = {}) {
             $input.focus();
 
             const saveInput = async () => {
-                const wardId = wardFilterInstance ? wardFilterInstance.option('value') : 'ALL';
-                if (!wardId || wardId === 'ALL') {
+                const wardId = wardFilterInstance ? wardFilterInstance.option('value') : null;
+                if (!wardId) {
                     DevExpress.ui.notify('Please select a ward', 'warning', 2000);
                     renderCalendar();
                     return;
