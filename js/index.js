@@ -200,6 +200,18 @@ $(document).ready(function() {
             }
             dropdownMenu.hide();
         } },
+        { id: 'menuChangeRequest', text: 'Change Request', action: () => {
+            if (typeof window.renderChangeRequest === 'function') {
+                window.renderChangeRequest();
+            }
+            dropdownMenu.hide();
+        } },
+        { id: 'menuScheduleSummary', text: 'Schedule Summary', action: () => {
+            if (typeof window.renderScheduleSummary === 'function') {
+                window.renderScheduleSummary();
+            }
+            dropdownMenu.hide();
+        } },
         { id: 'menuUserManagement', text: 'User Management', action: () => {
             if (typeof window.renderUserManagement === 'function') {
                 window.renderUserManagement();
@@ -245,7 +257,7 @@ $(document).ready(function() {
 
     function updateAuthUI(isLoggedIn) {
         const showWhenLoggedOut = ['menuSignup', 'menuLogin'];
-        const showWhenLoggedIn = ['menuSettingsPersonal', 'menuLogout', 'menuSchedule'];
+        const showWhenLoggedIn = ['menuSettingsPersonal', 'menuLogout', 'menuSchedule', 'menuChangeRequest', 'menuScheduleSummary'];
 
         showWhenLoggedOut.forEach(id => {
             if (menuButtons[id]) menuButtons[id].toggle(!isLoggedIn);
@@ -259,8 +271,12 @@ $(document).ready(function() {
 
         const roles = getStoredRoles();
         const isAdmin = roles.includes('admin');
+        const isHead = roles.includes('head');
         if (menuButtons.menuSettingsSystem) {
-            menuButtons.menuSettingsSystem.toggle(isLoggedIn && isAdmin);
+            menuButtons.menuSettingsSystem.toggle(isLoggedIn && (isAdmin || isHead));
+        }
+        if (menuButtons.menuScheduleSummary) {
+            menuButtons.menuScheduleSummary.toggle(isLoggedIn && isHead);
         }
         if (menuButtons.menuUserManagement) {
             menuButtons.menuUserManagement.toggle(isLoggedIn && isAdmin);

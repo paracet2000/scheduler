@@ -123,3 +123,22 @@ exports.sendVerifyEmail = async (to, link) => {
     console.log('Ethereal preview URL:', previewUrl);
   }
 };
+
+exports.sendChangeRequestEmail = async (to, subject, html) => {
+  const transporter = await getTransporter();
+  const fromAddress = useEthereal && etherealAccount
+    ? `"Shift Scheduler" <${etherealAccount.user}>`
+    : `"Shift Scheduler" <${mailConfig.from}>`;
+
+  const info = await transporter.sendMail({
+    from: fromAddress,
+    to,
+    subject,
+    html
+  });
+
+  if (useEthereal) {
+    const previewUrl = nodemailer.getTestMessageUrl(info);
+    console.log('Ethereal preview URL:', previewUrl);
+  }
+};

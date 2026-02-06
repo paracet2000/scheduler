@@ -1,8 +1,8 @@
 // controllers/scheduler.head.controller.js
 
-const SchedulerHead = require('../models/scheduler.head.model');
+const SchedulerHead = require('../model/scheduler.head.model');
 const asyncHandler = require('../helpers/async.handler');
-const AppError = require('../utils/apperror');
+const AppError = require('../helpers/apperror');
 
 /**
  * =========================

@@ -9,10 +9,20 @@ const {
   closeSchedulerHead,
   getSchedulerHeads,
   getActiveSchedulerHeadByWard,
-} = require('../controllers/schedulerHead.controller');
+} = require('../controllers/scheduler.head.controller');
 
-const authorize = require('../middlewares/authorize');
-const authenticate = require('../middlewares/authenticate');
+const authenticate = require('../middleware/authenticate');
+const AppError = require('../helpers/apperror');
+
+const authorizeRoles = (...roles) => (req, res, next) => {
+  const userRoles = Array.isArray(req.user?.roles) ? req.user.roles : [];
+  const allow = roles.flat().map(r => String(r).toLowerCase());
+  const ok = userRoles.some(r => allow.includes(String(r).toLowerCase()));
+  if (!ok) {
+    return next(new AppError('Forbidden', 403));
+  }
+  return next();
+};
 
 /**
  * =========================
@@ -22,24 +32,24 @@ const authenticate = require('../middlewares/authenticate');
  */
 
 // list heads (ใช้ดูย้อนหลัง / audit)
-router.get('/',authenticate,authorize('HEAD', 'ADMIN'),
+router.get('/', authenticate, authorizeRoles('head', 'admin'),
   getSchedulerHeads
 );
 
 // ดูรอบที่ OPEN ของ ward (ใช้ตอน create schedule)
-router.get('/ward/:wardId/active',authenticate,getActiveSchedulerHeadByWard
+router.get('/ward/:wardId/active', authenticate, getActiveSchedulerHeadByWard
 );
 
 // สร้างรอบเวร (DRAFT)
-router.post('/',authenticate,  authorize('HEAD', 'ADMIN'),  createSchedulerHead
+router.post('/', authenticate, authorizeRoles('head', 'admin'), createSchedulerHead
 );
 
 // เปิดรอบเวร
-router.patch(  '/:id/open',  authenticate,  authorize('HEAD', 'ADMIN'),  openSchedulerHead
+router.patch('/:id/open', authenticate, authorizeRoles('head', 'admin'), openSchedulerHead
 );
 
 // ปิดรอบเวร
-router.patch(  '/:id/close',  authenticate,  authorize('HEAD', 'ADMIN'),  closeSchedulerHead
+router.patch('/:id/close', authenticate, authorizeRoles('head', 'admin'), closeSchedulerHead
 );
 
 module.exports = router;

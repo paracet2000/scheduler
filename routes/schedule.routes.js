@@ -23,6 +23,15 @@ router.get(
   ctrl.mySchedule
 );
 
+// get schedule by user (head/admin or self)
+router.get(
+  '/user/:userId',
+  auth,
+  // TODO: Re-enable authorizeWard when user-ward mapping is ready.
+  // authorizeWard(['HEAD', 'ADMIN']),
+  ctrl.userScheduleById
+);
+
 // check booking window by ward
 router.get(
   '/head/:wardId',
@@ -33,6 +42,15 @@ router.get(
 /* =========================
  * Head / Admin
  * ========================= */
+
+// summary by ward (head/admin)
+router.get(
+  '/summary/:wardId',
+  auth,
+  // TODO: Re-enable authorizeWard when user-ward mapping is ready.
+  // authorizeWard(['HEAD', 'ADMIN']),
+  ctrl.summaryByWard
+);
 
 // ดูตารางราย ward
 router.get(

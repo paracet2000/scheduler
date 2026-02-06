@@ -3,7 +3,15 @@ const router = express.Router();
 
 const changeRequestController = require('../controllers/changerequest.controller');
 const authenticate = require('../middleware/authenticate');
-const authorize = require('../middleware/authorize-ward');
+const AppError = require('../helpers/apperror');
+
+const authorizeRoles = (...roles) => (req, res, next) => {
+  const userRoles = Array.isArray(req.user?.roles) ? req.user.roles : [];
+  const allow = roles.flat().map(r => String(r).toLowerCase());
+  const ok = userRoles.some(r => allow.includes(String(r).toLowerCase()));
+  if (!ok) return next(new AppError('Forbidden', 403));
+  return next();
+};
 
 /**
  * =========================
@@ -24,14 +32,15 @@ router.use(authenticate);
  */
 router.post(
   '/',
-  authorize(['user', 'head', 'admin']),
+  authorizeRoles(['user', 'head', 'admin']),
   changeRequestController.create
 );
 
 /**
  * ดูคำขอของตัวเอง
  */
-router.get( '/my',  authorize(['user', 'head', 'admin']),  changeRequestController.list);
+router.get( '/my',  authorizeRoles(['user', 'head', 'admin']),  changeRequestController.list);
+router.get( '/inbox',  authorizeRoles(['user', 'head', 'admin']),  changeRequestController.inbox);
 
 /**
  * ยกเลิกคำขอ (เฉพาะ status OPEN)
@@ -41,7 +50,7 @@ router.get( '/my',  authorize(['user', 'head', 'admin']),  changeRequestControll
 /**
  * รับคำขอ (อาสามาแทน)
  */
-// router.patch(  '/:id/accept',  authorize(['user', 'head', 'admin']),  changeRequestController.accept);
+router.patch(  '/:id/accept',  authorizeRoles(['user', 'head', 'admin']),  changeRequestController.accept);
 
 /**
  * -------------------------
@@ -54,16 +63,16 @@ router.get( '/my',  authorize(['user', 'head', 'admin']),  changeRequestControll
  * ดูคำขอใน ward (filter ได้)
  * ?wardId=&status=&type=
  */
-router.get('/',  authorize(['head', 'approver', 'admin']),  changeRequestController.list);
+router.get('/',  authorizeRoles(['head', 'approver', 'admin']),  changeRequestController.list);
 
 /**
  * approve คำขอ
  */
-router.patch(  '/:id/approve',  authorize(['head', 'approver', 'admin']),  changeRequestController.approve);
+router.patch(  '/:id/approve',  authorizeRoles(['head', 'approver', 'admin']),  changeRequestController.approve);
 
 /**
  * reject คำขอ
  */
-router.patch(  '/:id/reject',  authorize(['head', 'approver', 'admin']),  changeRequestController.reject);
+router.patch(  '/:id/reject',  authorizeRoles(['head', 'approver', 'admin']),  changeRequestController.reject);
 
 module.exports = router;

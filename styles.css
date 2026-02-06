@@ -266,6 +266,41 @@ body {
     border-radius: 999px;
 }
 
+.schedule-shift-pending {
+    border: 1px solid #f59e0b;
+    color: #7c2d12;
+}
+
+.schedule-accept-btn {
+    margin-left: 6px;
+    padding: 2px 6px;
+    border: none;
+    border-radius: 8px;
+    background: #2563eb;
+    color: #fff;
+    font-size: 10px;
+    cursor: pointer;
+}
+
+.schedule-accept-btn:hover {
+    background: #1d4ed8;
+}
+
+.schedule-status-text {
+    margin-left: 6px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #94a3b8;
+}
+
+.schedule-status-approved {
+    color: #16a34a;
+}
+
+.schedule-status-accepted {
+    color: #2563eb;
+}
+
 .schedule-editor {
     margin-top: 12px;
     padding: 12px;
@@ -449,6 +484,13 @@ body {
     transition: background-color 220ms ease, color 220ms ease;
 }
 
+/* System Settings header (match User Management) */
+.system-settings-content .dx-datagrid .dx-header-row,
+.system-settings-content .dx-datagrid .dx-header-row > td {
+    background-color: #4b86d4;
+    color: #fefeff;
+}
+
 /* User Management header */
 #userManagement .dx-datagrid .dx-header-row,
 #userManagement .dx-datagrid .dx-header-row > td {
@@ -459,6 +501,198 @@ body {
 .reset-pass-btn {
     padding: 6px 8px;
     min-width: 36px;
+}
+
+/* Schedule summary */
+.summary-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 14px;
+}
+
+.summary-table-wrap {
+    overflow: auto;
+    max-width: 100%;
+}
+
+.summary-table {
+    width: max-content;
+    min-width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.summary-table th,
+.summary-table td {
+    border: 1px solid #e2e8f0;
+    padding: 6px 8px;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.summary-table thead th {
+    background: #f1f5f9;
+    color: #0f172a;
+    font-weight: 600;
+}
+
+.summary-table .sticky-col {
+    position: sticky;
+    left: 0;
+    background: #ffffff;
+    text-align: left;
+    min-width: 160px;
+    z-index: 2;
+}
+
+.summary-table .edit-col {
+    min-width: 36px;
+    width: 36px;
+    text-align: center;
+}
+
+.summary-table .name-col {
+    left: 36px;
+}
+
+.summary-table thead .sticky-col {
+    background: #e2e8f0;
+    z-index: 3;
+}
+
+.summary-edit-btn {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: #2563eb;
+}
+
+.summary-edit-btn:hover {
+    color: #1d4ed8;
+}
+
+.summary-avatar-btn {
+    border: none;
+    background: transparent;
+    padding: 0;
+    cursor: pointer;
+}
+
+.summary-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #e2e8f0;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    background-size: cover;
+    background-position: center;
+}
+
+/* schedule edit banner */
+.schedule-edit-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    background: #f1f5f9;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+}
+
+.schedule-edit-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #e2e8f0;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    background-size: cover;
+    background-position: center;
+}
+
+.schedule-edit-title {
+    font-weight: 600;
+    color: #0f172a;
+}
+
+/* change request */
+#change {
+    padding: 16px 0;
+}
+
+#changeRequestGrid {
+    margin-top: 12px;
+}
+
+.change-list-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.change-list-badge {
+    position: absolute;
+    top: -6px;
+    right: -8px;
+    background: #ef4444;
+    color: #fff;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    min-width: 18px;
+    text-align: center;
+}
+
+.summary-table .total-col {
+    background: #f8fafc;
+    font-weight: 600;
+    min-width: 56px;
+}
+
+.summary-cell-pending {
+    background: #ffedd5;
+}
+
+.summary-cell-accepted {
+    background: #dbeafe;
+}
+
+.summary-cell-approved {
+    background: #dcfce7;
+}
+
+.summary-cell-rejected {
+    background: #f1f5f9;
+}
+
+.summary-row td {
+    background: #f1f5f9;
+    font-weight: 600;
+}
+
+.summary-row .sticky-col {
+    background: #e2e8f0;
+}
+
+.summary-row.summary-total td {
+    background: #e5e7eb;
+}
+
+/* darker background for summary shift/total columns */
+.summary-row .summary-total-dark {
+    background: #cbd5e1;
 }
 
 #register {

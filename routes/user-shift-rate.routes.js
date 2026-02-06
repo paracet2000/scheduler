@@ -3,7 +3,7 @@ const router = express.Router();
 
 const authenticate = require('../middleware/authenticate');
 const AppError = require('../helpers/apperror');
-const userWardController = require('../controllers/userward.controller');
+const ctrl = require('../controllers/user-shift-rate.controller');
 
 const authorizeRoles = (...roles) => (req, res, next) => {
   const userRoles = Array.isArray(req.user?.roles) ? req.user.roles : [];
@@ -15,11 +15,9 @@ const authorizeRoles = (...roles) => (req, res, next) => {
 
 router.use(authenticate);
 
-router.get('/meta', authorizeRoles('head', 'admin'), userWardController.meta);
-router.get('/users', authorizeRoles('user', 'head', 'admin'), userWardController.usersByWard);
-router.get('/me', authorizeRoles('user', 'head', 'admin'), userWardController.meByWard);
-router.get('/', authorizeRoles('head', 'admin'), userWardController.list);
-router.post('/', authorizeRoles('head', 'admin'), userWardController.create);
-router.put('/:id', authorizeRoles('head', 'admin'), userWardController.update);
+router.get('/meta', authorizeRoles('admin', 'finance'), ctrl.meta);
+router.get('/', authorizeRoles('admin', 'finance'), ctrl.list);
+router.post('/', authorizeRoles('admin', 'finance'), ctrl.create);
+router.put('/:id', authorizeRoles('admin', 'finance'), ctrl.update);
 
 module.exports = router;

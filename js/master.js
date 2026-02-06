@@ -7,14 +7,16 @@ window.renderSystemSettings = async function renderSystemSettings() {
 
     const roles = typeof window.getStoredRoles === 'function' ? window.getStoredRoles() : [];
     const isAdmin = roles.includes('admin');
+    const isHead = roles.includes('head');
+    const canManageSystem = isAdmin || isHead;
 
     $('#systemSettings').empty();
 
-    if (!isAdmin) {
+    if (!canManageSystem) {
         $('#systemSettings').append(
             $('<div>', {
                 class: 'settings-placeholder',
-                text: 'System settings are available for admin users only.'
+                text: 'System settings are available for admin/head users only.'
             })
         );
         return;
@@ -62,8 +64,498 @@ window.renderSystemSettings = async function renderSystemSettings() {
 
     const authHeaders = () => (token ? { Authorization: `Bearer ${token}` } : {});
 
+    const renderSchedulerHeadSection = async () => {
+        systemContent.empty();
+
+        const apiBase = window.BASE_URL || 'http://localhost:3000';
+        let wards = [];
+        let heads = [];
+
+        try {
+            const [wardRes, headRes] = await Promise.all([
+                fetch(`${apiBase}/api/masters/WARD`, { headers: authHeaders() }),
+                fetch(`${apiBase}/api/scheduler-heads`, { headers: authHeaders() })
+            ]);
+
+            const wardJson = await wardRes.json();
+            const headJson = await headRes.json();
+
+            if (!wardRes.ok) throw new Error(wardJson.message || 'Failed to load wards');
+            if (!headRes.ok) throw new Error(headJson.message || 'Failed to load scheduler heads');
+
+            wards = Array.isArray(wardJson.data) ? wardJson.data : [];
+            heads = Array.isArray(headJson.data) ? headJson.data : [];
+        } catch (err) {
+            systemContent.append(
+                $('<div>', {
+                    class: 'settings-placeholder',
+                    text: err.message || 'Unable to load scheduler heads.'
+                })
+            );
+            return;
+        }
+
+        const wardLookup = wards.map(w => ({
+            _id: w._id,
+            name: w.name,
+            code: w.code
+        }));
+
+        const normalizedHeads = heads.map(h => ({
+            ...h,
+            wardId: h.wardId?._id || h.wardId
+        }));
+
+        const gridEl = $('<div>', { id: 'schedulerHeadGrid' });
+        systemContent.append(gridEl);
+
+        const grid = gridEl.dxDataGrid({
+            dataSource: normalizedHeads,
+            keyExpr: '_id',
+            showBorders: true,
+            columnAutoWidth: true,
+            paging: { pageSize: 10 },
+            editing: {
+                mode: 'row',
+                allowAdding: true,
+                allowUpdating: false,
+                allowDeleting: false
+            },
+            columns: [
+                {
+                    dataField: 'wardId',
+                    caption: 'Ward',
+                    lookup: {
+                        dataSource: wardLookup,
+                        valueExpr: '_id',
+                        displayExpr: (item) => item ? `${item.name}${item.code ? ` (${item.code})` : ''}` : ''
+                    },
+                    validationRules: [{ type: 'required' }]
+                },
+                {
+                    dataField: 'periodStart',
+                    caption: 'Start',
+                    dataType: 'date',
+                    validationRules: [{ type: 'required' }]
+                },
+                {
+                    dataField: 'periodEnd',
+                    caption: 'End',
+                    dataType: 'date',
+                    validationRules: [{ type: 'required' }]
+                },
+                {
+                    dataField: 'status',
+                    caption: 'Status',
+                    allowEditing: false
+                },
+                {
+                    dataField: 'note',
+                    caption: 'Note'
+                },
+                {
+                    caption: 'Action',
+                    width: 160,
+                    allowEditing: false,
+                    cellTemplate: (container, options) => {
+                        const status = options.data?.status;
+                        const id = options.data?._id;
+
+                        if (status === 'DRAFT') {
+                            const btn = $('<button>', { class: 'dx-button dx-button-mode-contained dx-button-normal' })
+                                .text('Open')
+                                .on('click', async () => {
+                                    const res = await fetch(`${apiBase}/api/scheduler-heads/${id}/open`, {
+                                        method: 'PATCH',
+                                        headers: authHeaders()
+                                    });
+                                    const json = await res.json();
+                                    if (!res.ok) {
+                                        DevExpress.ui.notify(json.message || 'Open failed', 'error', 3000);
+                                        return;
+                                    }
+                                    options.data.status = json.data?.status || 'OPEN';
+                                    options.component.refresh();
+                                    DevExpress.ui.notify('Opened', 'success', 2000);
+                                });
+                            container.append(btn);
+                        } else if (status === 'OPEN') {
+                            const btn = $('<button>', { class: 'dx-button dx-button-mode-contained dx-button-danger' })
+                                .text('Close')
+                                .on('click', async () => {
+                                    const res = await fetch(`${apiBase}/api/scheduler-heads/${id}/close`, {
+                                        method: 'PATCH',
+                                        headers: authHeaders()
+                                    });
+                                    const json = await res.json();
+                                    if (!res.ok) {
+                                        DevExpress.ui.notify(json.message || 'Close failed', 'error', 3000);
+                                        return;
+                                    }
+                                    options.data.status = json.data?.status || 'CLOSED';
+                                    options.component.refresh();
+                                    DevExpress.ui.notify('Closed', 'success', 2000);
+                                });
+                            container.append(btn);
+                        } else {
+                            container.text('-');
+                        }
+                    }
+                }
+            ],
+            onRowInserting: async (e) => {
+                const payload = {
+                    wardId: e.data.wardId,
+                    periodStart: e.data.periodStart,
+                    periodEnd: e.data.periodEnd,
+                    note: e.data.note
+                };
+
+                const res = await fetch(`${apiBase}/api/scheduler-heads`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...authHeaders()
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const json = await res.json();
+                if (!res.ok) {
+                    e.cancel = true;
+                    DevExpress.ui.notify(json.message || 'Create failed', 'error', 3000);
+                    return;
+                }
+                e.data._id = json.data?._id || e.data._id;
+                e.data.status = json.data?.status || 'DRAFT';
+                DevExpress.ui.notify('Created', 'success', 2000);
+            },
+            onRowValidating: (e) => {
+                if (e.newData?.periodStart && e.newData?.periodEnd) {
+                    if (new Date(e.newData.periodStart) > new Date(e.newData.periodEnd)) {
+                        e.isValid = false;
+                        e.errorText = 'Start date must be earlier than end date.';
+                    }
+                }
+            }
+        }).dxDataGrid('instance');
+    };
+
+    const renderUserWardSection = async () => {
+        systemContent.empty();
+
+        const apiBase = window.BASE_URL || 'http://localhost:3000';
+        let meta = {};
+        let items = [];
+
+        try {
+            const [metaRes, listRes] = await Promise.all([
+                fetch(`${apiBase}/api/user-wards/meta`, { headers: authHeaders() }),
+                fetch(`${apiBase}/api/user-wards`, { headers: authHeaders() })
+            ]);
+            const metaJson = await metaRes.json();
+            const listJson = await listRes.json();
+            if (!metaRes.ok) throw new Error(metaJson.message || 'Failed to load meta');
+            if (!listRes.ok) throw new Error(listJson.message || 'Failed to load user wards');
+            meta = metaJson.data || {};
+            items = Array.isArray(listJson.data) ? listJson.data : [];
+        } catch (err) {
+            systemContent.append(
+                $('<div>', {
+                    class: 'settings-placeholder',
+                    text: err.message || 'Unable to load user wards.'
+                })
+            );
+            return;
+        }
+
+        const users = Array.isArray(meta.users) ? meta.users : [];
+        const wards = Array.isArray(meta.wards) ? meta.wards : [];
+        const positions = Array.isArray(meta.positions) ? meta.positions : [];
+
+        const gridData = items.map(item => ({
+            ...item,
+            userId: item.userId?._id || item.userId,
+            wardId: item.wardId?._id || item.wardId
+        }));
+
+        const gridEl = $('<div>', { id: 'userWardGrid' });
+        systemContent.append(gridEl);
+
+        gridEl.dxDataGrid({
+            dataSource: gridData,
+            keyExpr: '_id',
+            showBorders: true,
+            columnAutoWidth: true,
+            paging: { pageSize: 10 },
+            editing: {
+                mode: 'row',
+                allowAdding: true,
+                allowUpdating: true,
+                allowDeleting: false
+            },
+            columns: [
+                {
+                    dataField: 'userId',
+                    caption: 'User',
+                    allowEditing: true,
+                    lookup: {
+                        dataSource: users,
+                        valueExpr: '_id',
+                        displayExpr: (item) => item ? `${item.employeeCode || ''} ${item.name || ''}`.trim() : ''
+                    },
+                    validationRules: [{ type: 'required' }]
+                },
+                {
+                    dataField: 'wardId',
+                    caption: 'Ward',
+                    allowEditing: true,
+                    lookup: {
+                        dataSource: wards,
+                        valueExpr: '_id',
+                        displayExpr: (item) => item ? `${item.name || ''} ${item.code ? `(${item.code})` : ''}`.trim() : ''
+                    },
+                    validationRules: [{ type: 'required' }]
+                },
+                {
+                    dataField: 'position',
+                    caption: 'Position',
+                    lookup: {
+                        dataSource: positions,
+                        valueExpr: 'code',
+                        displayExpr: (item) => item ? item.code : ''
+                    },
+                    validationRules: [{ type: 'required' }]
+                },
+                {
+                    dataField: 'roles',
+                    caption: 'Roles',
+                    cellTemplate: (container, options) => {
+                        const roles = Array.isArray(options.value) ? options.value : [];
+                        container.text(roles.join(', '));
+                    },
+                    editCellTemplate: (cellElement, cellInfo) => {
+                        $('<div>').appendTo(cellElement).dxTagBox({
+                            items: ['USER', 'HEAD', 'APPROVER', 'HR', 'FINANCE'],
+                            value: cellInfo.value || [],
+                            onValueChanged(e) {
+                                cellInfo.setValue(e.value);
+                            }
+                        });
+                    }
+                },
+                {
+                    dataField: 'isPrimary',
+                    caption: 'Primary',
+                    dataType: 'boolean'
+                },
+                {
+                    dataField: 'status',
+                    caption: 'Status',
+                    lookup: {
+                        dataSource: ['ACTIVE', 'INACTIVE']
+                    }
+                }
+            ],
+            onRowInserting: async (e) => {
+                const payload = {
+                    userId: e.data.userId,
+                    wardId: e.data.wardId,
+                    position: e.data.position,
+                    roles: e.data.roles,
+                    isPrimary: e.data.isPrimary,
+                    status: e.data.status
+                };
+                const res = await fetch(`${apiBase}/api/user-wards`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...authHeaders()
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const json = await res.json();
+                if (!res.ok) {
+                    e.cancel = true;
+                    DevExpress.ui.notify(json.message || 'Create failed', 'error', 3000);
+                    return;
+                }
+                e.data._id = json.data?._id || e.data._id;
+                DevExpress.ui.notify('Created', 'success', 2000);
+            },
+            onRowUpdating: async (e) => {
+                const id = e.key;
+                const payload = { ...e.oldData, ...e.newData };
+                const res = await fetch(`${apiBase}/api/user-wards/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...authHeaders()
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const json = await res.json();
+                if (!res.ok) {
+                    e.cancel = true;
+                    DevExpress.ui.notify(json.message || 'Update failed', 'error', 3000);
+                    return;
+                }
+                DevExpress.ui.notify('Updated', 'success', 2000);
+            }
+        });
+    };
+
+    const renderUserShiftRateSection = async () => {
+        systemContent.empty();
+
+        const apiBase = window.BASE_URL || 'http://localhost:3000';
+        let meta = {};
+        let items = [];
+
+        try {
+            const [metaRes, listRes] = await Promise.all([
+                fetch(`${apiBase}/api/user-shift-rates/meta`, { headers: authHeaders() }),
+                fetch(`${apiBase}/api/user-shift-rates`, { headers: authHeaders() })
+            ]);
+            const metaJson = await metaRes.json();
+            const listJson = await listRes.json();
+            if (!metaRes.ok) throw new Error(metaJson.message || 'Failed to load meta');
+            if (!listRes.ok) throw new Error(listJson.message || 'Failed to load user shift rates');
+            meta = metaJson.data || {};
+            items = Array.isArray(listJson.data) ? listJson.data : [];
+        } catch (err) {
+            systemContent.append(
+                $('<div>', {
+                    class: 'settings-placeholder',
+                    text: err.message || 'Unable to load user shift rates.'
+                })
+            );
+            return;
+        }
+
+        const users = Array.isArray(meta.users) ? meta.users : [];
+        const shifts = Array.isArray(meta.shifts) ? meta.shifts : [];
+
+        const gridData = items.map(item => ({
+            ...item,
+            userId: item.userId?._id || item.userId
+        }));
+
+        const gridEl = $('<div>', { id: 'userShiftRateGrid' });
+        systemContent.append(gridEl);
+
+        gridEl.dxDataGrid({
+            dataSource: gridData,
+            keyExpr: '_id',
+            showBorders: true,
+            columnAutoWidth: true,
+            paging: { pageSize: 10 },
+            editing: {
+                mode: 'row',
+                allowAdding: true,
+                allowUpdating: true,
+                allowDeleting: false
+            },
+            columns: [
+                {
+                    dataField: 'userId',
+                    caption: 'User',
+                    lookup: {
+                        dataSource: users,
+                        valueExpr: '_id',
+                        displayExpr: (item) => item ? `${item.employeeCode || ''} ${item.name || ''}`.trim() : ''
+                    },
+                    validationRules: [{ type: 'required' }]
+                },
+                {
+                    dataField: 'shiftCode',
+                    caption: 'Shift',
+                    lookup: {
+                        dataSource: shifts,
+                        valueExpr: 'code',
+                        displayExpr: (item) => item ? item.code : ''
+                    },
+                    validationRules: [{ type: 'required' }]
+                },
+                {
+                    dataField: 'amount',
+                    caption: 'Amount',
+                    dataType: 'number',
+                    validationRules: [{ type: 'required' }]
+                },
+                {
+                    dataField: 'currency',
+                    caption: 'Currency'
+                },
+                {
+                    dataField: 'status',
+                    caption: 'Status',
+                    lookup: {
+                        dataSource: ['ACTIVE', 'INACTIVE']
+                    }
+                }
+            ],
+            onRowInserting: async (e) => {
+                const payload = {
+                    userId: e.data.userId,
+                    shiftCode: e.data.shiftCode,
+                    amount: e.data.amount,
+                    currency: e.data.currency,
+                    status: e.data.status
+                };
+                const res = await fetch(`${apiBase}/api/user-shift-rates`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...authHeaders()
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const json = await res.json();
+                if (!res.ok) {
+                    e.cancel = true;
+                    DevExpress.ui.notify(json.message || 'Create failed', 'error', 3000);
+                    return;
+                }
+                e.data._id = json.data?._id || e.data._id;
+                DevExpress.ui.notify('Created', 'success', 2000);
+            },
+            onRowUpdating: async (e) => {
+                const id = e.key;
+                const payload = { ...e.oldData, ...e.newData };
+                const res = await fetch(`${apiBase}/api/user-shift-rates/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...authHeaders()
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const json = await res.json();
+                if (!res.ok) {
+                    e.cancel = true;
+                    DevExpress.ui.notify(json.message || 'Update failed', 'error', 3000);
+                    return;
+                }
+                DevExpress.ui.notify('Updated', 'success', 2000);
+            }
+        });
+    };
+
+
     const renderSystemSection = async (item) => {
         systemContent.empty();
+        if (item && item._type === 'schedulerHead') {
+            await renderSchedulerHeadSection();
+            return;
+        }
+        if (item && item._type === 'userWard') {
+            await renderUserWardSection();
+            return;
+        }
+        if (item && item._type === 'userShiftRate') {
+            await renderUserShiftRateSection();
+            return;
+        }
         const meta = item.meta || {};
         const hint = meta.hint || 'Master type';
 
@@ -128,6 +620,13 @@ window.renderSystemSettings = async function renderSystemSettings() {
                     validationRules: [{ type: 'required' }]
                 },
                 { dataField: 'description', caption: 'Description' },
+                ...(String(typeCode).toUpperCase() === 'WARD'
+                    ? [{
+                        dataField: 'meta.group',
+                        caption: 'Group',
+                        validationRules: [{ type: 'required' }]
+                    }]
+                    : []),
                 {
                     dataField: 'status',
                     caption: 'Status',
@@ -194,7 +693,29 @@ window.renderSystemSettings = async function renderSystemSettings() {
         }).dxDataGrid('instance');
     };
 
-    items.forEach((item, index) => {
+    const systemItems = [
+        {
+            _id: 'SCHEDULER_HEAD',
+            name: 'Scheduler Head',
+            meta: { color: '#0ea5e9', icon: 'sh', hint: 'เปิด/ปิดรอบเวร' },
+            _type: 'schedulerHead'
+        },
+        {
+            _id: 'USER_WARD',
+            name: 'User Ward',
+            meta: { color: '#64748b', icon: 'uw', hint: 'ผูกผู้ใช้กับ ward' },
+            _type: 'userWard'
+        },
+        {
+            _id: 'USER_SHIFT_RATE',
+            name: 'User Shift Rate',
+            meta: { color: '#22c55e', icon: 'sr', hint: 'เรทต่อคน/รหัสเวร' },
+            _type: 'userShiftRate'
+        },
+        ...items
+    ];
+
+    systemItems.forEach((item, index) => {
         const meta = item.meta || {};
         const btn = $('<button>', {
             class: `system-settings-item${index === 0 ? ' active' : ''}`,

@@ -1,6 +1,6 @@
 // js/schedule.js
 // Personal Schedule Booking (Custom Calendar)
-window.renderSchedule = async function renderSchedule() {
+window.renderSchedule = async function renderSchedule(options = {}) {
     if (typeof window.showPage === 'function') {
         window.showPage('schedule');
     }
@@ -13,6 +13,7 @@ window.renderSchedule = async function renderSchedule() {
     scheduleEl.empty();
 
     const toolbar = $('<div>', { class: 'schedule-toolbar' });
+    const editBanner = $('<div>', { class: 'schedule-edit-banner' }).hide();
     const wardSelectEl = $('<div>', { id: 'scheduleWardFilter' });
     const patternSelectEl = $('<div>', { id: 'schedulePatternFilter' });
     const patternApplyBtnEl = $('<div>', { id: 'schedulePatternApply' });
@@ -25,15 +26,37 @@ window.renderSchedule = async function renderSchedule() {
 
     const calendarWrap = $('<div>', { class: 'schedule-grid' });
     const bookingBanner = $('<div>', { class: 'schedule-booking-banner' }).hide();
-    scheduleEl.append(toolbar, calendarWrap);
+    scheduleEl.append(editBanner, toolbar, calendarWrap);
     scheduleEl.append(bookingBanner);
 
-    const [wardRes, shiftRes, myRes, patternRes, meRes] = await Promise.all([
+    const editUserId = options.userId || null;
+    const editWardId = options.wardId || null;
+    const editUserName = options.userName || '';
+    const editUserAvatar = options.userAvatar || '';
+    const lockWard = !!options.lockWard;
+    const lockMonth = !!options.lockMonth;
+    const returnToSummary = !!options.returnToSummary;
+    let selectedDate = options.year && options.month
+        ? new Date(options.year, options.month - 1, 1)
+        : new Date();
+
+    const loadSchedules = async (date) => {
+        const month = date.getMonth() + 1;
+        const year = date.getFullYear();
+        if (editUserId) {
+            const wardQuery = editWardId ? `&wardId=${editWardId}` : '';
+            return fetch(`${apiBase}/api/schedules/user/${editUserId}?month=${month}&year=${year}${wardQuery}`, { headers: authHeaders });
+        }
+        return fetch(`${apiBase}/api/schedules/my`, { headers: authHeaders });
+    };
+
+    const [wardRes, shiftRes, myRes, patternRes, meRes, inboxRes] = await Promise.all([
         fetch(`${apiBase}/api/masters/WARD`, { headers: authHeaders }),
         fetch(`${apiBase}/api/masters/SHIFT`, { headers: authHeaders }),
-        fetch(`${apiBase}/api/schedules/my`, { headers: authHeaders }),
+        loadSchedules(selectedDate),
         fetch(`${apiBase}/api/master-patterns`, { headers: authHeaders }),
-        fetch(`${apiBase}/api/users/me`, { headers: authHeaders })
+        fetch(`${apiBase}/api/users/me`, { headers: authHeaders }),
+        fetch(`${apiBase}/api/changes/inbox?status=OPEN`, { headers: authHeaders })
     ]);
 
     const wardJson = await wardRes.json();
@@ -41,9 +64,10 @@ window.renderSchedule = async function renderSchedule() {
     const myJson = await myRes.json();
     const patternJson = await patternRes.json();
     const meJson = await meRes.json();
+    const inboxJson = await inboxRes.json();
 
-    if (!wardRes.ok || !shiftRes.ok || !myRes.ok || !patternRes.ok || !meRes.ok) {
-        const message = wardJson?.message || shiftJson?.message || myJson?.message || patternJson?.message || meJson?.message || 'Failed to load schedule data';
+    if (!wardRes.ok || !shiftRes.ok || !myRes.ok || !patternRes.ok || !meRes.ok || !inboxRes.ok) {
+        const message = wardJson?.message || shiftJson?.message || myJson?.message || patternJson?.message || meJson?.message || inboxJson?.message || 'Failed to load schedule data';
         scheduleEl.html(`<div class="settings-placeholder">${message}</div>`);
         return;
     }
@@ -53,10 +77,40 @@ window.renderSchedule = async function renderSchedule() {
     const schedules = Array.isArray(myJson.data) ? myJson.data : [];
     const patterns = Array.isArray(patternJson.data) ? patternJson.data : [];
     const profile = meJson?.data || {};
+    const inboxRequests = Array.isArray(inboxJson.data) ? inboxJson.data : [];
     const isEmailVerified = !!profile.emailVerified;
+
+    if (editUserId) {
+        const nameText = editUserName || profile?.name || profile?.email || 'User';
+        const avatarUrl = editUserAvatar
+            ? (typeof window.resolveAvatarUrl === 'function' ? window.resolveAvatarUrl(editUserAvatar) : editUserAvatar)
+            : (typeof window.resolveAvatarUrl === 'function' ? window.resolveAvatarUrl(profile?.avatar || '') : '');
+        const avatarEl = $('<div>', { class: 'schedule-edit-avatar' });
+        if (avatarUrl) {
+            avatarEl.css('background-image', `url('${avatarUrl}')`);
+        } else {
+            const initial = String(nameText || 'U').trim().charAt(0).toUpperCase();
+            avatarEl.text(initial);
+        }
+        const title = $('<div>', { class: 'schedule-edit-title', text: `Editing: ${nameText}` });
+        editBanner.empty().append(avatarEl, title).show();
+    }
 
     const shiftCodes = shifts.map(s => s.code);
     const scheduleMap = new Map();
+    const scheduleMetaMap = new Map();
+    const scheduleMetaByDateCode = new Map();
+    const scheduleItemMap = new Map();
+
+    const inboxScheduleMap = new Map();
+    inboxRequests.forEach(r => {
+        if (!Array.isArray(r.affectedSchedules)) return;
+        r.affectedSchedules.forEach(item => {
+            if (item.scheduleId) {
+                inboxScheduleMap.set(String(item.scheduleId), r._id);
+            }
+        });
+    });
     const shiftMetaByCode = new Map(shifts.map(s => [String(s.code).toUpperCase(), s.meta || {}]));
     const getKey = (date, wardId) => `${new Date(date).toDateString()}|${wardId || 'ALL'}`;
 
@@ -65,12 +119,20 @@ window.renderSchedule = async function renderSchedule() {
         const key = getKey(s.workDate, wardId);
         if (!scheduleMap.has(key)) scheduleMap.set(key, []);
         scheduleMap.get(key).push(s.shiftCode);
+        if (!scheduleItemMap.has(key)) scheduleItemMap.set(key, []);
+        scheduleItemMap.get(key).push({ id: String(s._id), code: s.shiftCode, meta: s.meta || {} });
+        const dateKey = new Date(s.workDate).toDateString();
+        const metaKey = `${dateKey}|${wardId}|${String(s.shiftCode).toUpperCase()}`;
+        scheduleMetaMap.set(metaKey, s.meta || {});
+        const aggKey = `${dateKey}|${String(s.shiftCode).toUpperCase()}`;
+        if (s.meta?.changeStatus === 'OPEN') {
+            scheduleMetaByDateCode.set(aggKey, { changeStatus: 'OPEN' });
+        }
     });
 
     const wardItems = [{ _id: 'ALL', name: 'All Wards' }, ...wards];
     let wardFilterInstance;
     let patternFilterInstance;
-    let selectedDate = new Date();
     let bookingOpen = false;
 
     const checkBookingWindow = async () => {
@@ -98,9 +160,10 @@ window.renderSchedule = async function renderSchedule() {
         items: wardItems,
         displayExpr: 'name',
         valueExpr: '_id',
-        value: 'ALL',
+        value: editWardId || 'ALL',
         width: 220,
         placeholder: 'Select ward',
+        disabled: lockWard,
         onInitialized(e) {
             wardFilterInstance = e.component;
         },
@@ -171,7 +234,12 @@ window.renderSchedule = async function renderSchedule() {
                     'Content-Type': 'application/json',
                     ...authHeaders
                 },
-                body: JSON.stringify({ schedules: schedulesToCreate })
+                body: JSON.stringify({
+                    schedules: schedulesToCreate.map(item => ({
+                        ...item,
+                        userId: editUserId || undefined
+                    }))
+                })
             });
             const json = await res.json();
             if (!res.ok) {
@@ -271,11 +339,54 @@ window.renderSchedule = async function renderSchedule() {
                 const label = $('<div>', { class: 'schedule-day', text: dayNum });
                 const shiftsEl = $('<div>', { class: 'schedule-shifts' });
                 const codes = getCodesForDate(cellDate);
-                codes.forEach(c => {
+                const wardId = wardFilterInstance ? wardFilterInstance.option('value') : 'ALL';
+                const cellKey = getKey(cellDate, wardId);
+                const items = scheduleItemMap.get(cellKey) || [];
+                items.forEach(item => {
+                    const c = item.code;
                     const meta = shiftMetaByCode.get(String(c).toUpperCase()) || {};
                     const chip = $('<span>', { class: 'schedule-shift-chip', text: c });
+                    const dateKey = cellDate.toDateString();
+                    const codeKey = String(c).toUpperCase();
+                    const metaKey = `${dateKey}|${wardId || 'ALL'}|${codeKey}`;
+                    const changeMeta = wardId === 'ALL'
+                        ? (scheduleMetaByDateCode.get(`${dateKey}|${codeKey}`) || {})
+                        : (scheduleMetaMap.get(metaKey) || {});
+                    if (changeMeta.changeStatus === 'OPEN') {
+                        chip.addClass('schedule-shift-pending');
+                    }
                     if (meta.color) {
                         chip.css('background-color', meta.color);
+                    }
+                    if (changeMeta.changeStatus) {
+                        const statusText = $('<span>', {
+                            class: `schedule-status-text schedule-status-${String(changeMeta.changeStatus).toLowerCase()}`,
+                            text: changeMeta.changeStatus
+                        });
+                        chip.append(statusText);
+                    }
+
+                    if (!editUserId && wardId !== 'ALL' && inboxScheduleMap.has(item.id)) {
+                        const acceptBtn = $('<button>', { class: 'schedule-accept-btn', text: 'Accept' });
+                        acceptBtn.on('click', async (e) => {
+                            e.stopPropagation();
+                            const reqId = inboxScheduleMap.get(item.id);
+                            const res = await fetch(`${apiBase}/api/changes/${reqId}/accept`, {
+                                method: 'PATCH',
+                                headers: authHeaders
+                            });
+                            const json = await res.json();
+                            if (!res.ok) {
+                                DevExpress.ui.notify(json.message || 'Accept failed', 'error', 3000);
+                                return;
+                            }
+                            DevExpress.ui.notify('Accepted', 'success', 2000);
+                            changeMeta.changeStatus = 'ACCEPTED';
+                            chip.removeClass('schedule-shift-pending');
+                            statusText.text('ACCEPTED').removeClass().addClass('schedule-status-text schedule-status-accepted');
+                            acceptBtn.remove();
+                        });
+                        chip.append(acceptBtn);
                     }
                     shiftsEl.append(chip);
                 });
@@ -371,7 +482,8 @@ window.renderSchedule = async function renderSchedule() {
                         workDate: selectedDate,
                         wardId,
                         shiftCode: code,
-                        meta: {}
+                        meta: {},
+                        userId: editUserId || undefined
                     }))
                 };
 
@@ -411,12 +523,60 @@ window.renderSchedule = async function renderSchedule() {
         });
     };
 
-    prevBtn.on('click', () => {
+    if (returnToSummary) {
+        const backBtn = $('<button>', { class: 'schedule-nav-btn', text: 'Back' });
+        monthNav.prepend(backBtn);
+        backBtn.on('click', () => {
+            if (typeof window.renderScheduleSummary === 'function') {
+                window.renderScheduleSummary({
+                    autoLoad: true,
+                    filters: options.summaryFilters || {}
+                });
+            }
+        });
+    }
+
+    prevBtn.prop('disabled', lockMonth);
+    nextBtn.prop('disabled', lockMonth);
+
+    prevBtn.on('click', async () => {
+        if (lockMonth) return;
         selectedDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1);
+        if (editUserId) {
+            const res = await loadSchedules(selectedDate);
+            const json = await res.json();
+            if (res.ok) {
+                schedules.length = 0;
+                schedules.push(...(Array.isArray(json.data) ? json.data : []));
+                scheduleMap.clear();
+                schedules.forEach(s => {
+                    const wardId = String(s.wardId?._id || s.wardId);
+                    const key = getKey(s.workDate, wardId);
+                    if (!scheduleMap.has(key)) scheduleMap.set(key, []);
+                    scheduleMap.get(key).push(s.shiftCode);
+                });
+            }
+        }
         renderCalendar();
     });
-    nextBtn.on('click', () => {
+    nextBtn.on('click', async () => {
+        if (lockMonth) return;
         selectedDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1);
+        if (editUserId) {
+            const res = await loadSchedules(selectedDate);
+            const json = await res.json();
+            if (res.ok) {
+                schedules.length = 0;
+                schedules.push(...(Array.isArray(json.data) ? json.data : []));
+                scheduleMap.clear();
+                schedules.forEach(s => {
+                    const wardId = String(s.wardId?._id || s.wardId);
+                    const key = getKey(s.workDate, wardId);
+                    if (!scheduleMap.has(key)) scheduleMap.set(key, []);
+                    scheduleMap.get(key).push(s.shiftCode);
+                });
+            }
+        }
         renderCalendar();
     });
 
