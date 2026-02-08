@@ -32,3 +32,21 @@ Seed ขั้นพื้นฐานสำหรับระบบใหม่
    - ใส่ rate ต่อ shift สำหรับ user นี้
 4. **ตรวจ Email/Phone**
    - เพื่อให้สร้าง Change Request และ Notify ได้
+
+## KPI Tools Access
+การเปิดสิทธิ์เมนู **KPI Tools** ให้ผู้ใช้ ทำโดยกำหนด `meta` ของ User:
+
+- Key: `meta.Can-use-kpi-tools`
+- Value ที่ถือว่าเปิดใช้: `true`, `1`, `"1"`, `"true"` (ค่าใดๆ ที่เป็น truthy)
+- Value ที่ปิดใช้: `false`, `0`, `null`, `undefined` หรือไม่ใส่ key นี้เลย
+
+**ข้อควรระวัง**
+- `"0"` (สตริง) จะถูกตีความเป็น **true** เพราะเป็น string ที่ไม่ว่าง
+- เพื่อความชัดเจน แนะนำใช้ `true` หรือ `false` เท่านั้น
+
+**ตัวอย่าง**
+```
+meta: {
+  "Can-use-kpi-tools": true
+}
+```

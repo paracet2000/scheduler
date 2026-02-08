@@ -2,6 +2,45 @@
 $(document).ready(function() {
     const BASE_URL = 'http://localhost:3000';
     window.BASE_URL = BASE_URL;
+    const GRID_VISIBLE_ROWS = 25;
+    const GRID_ROW_HEIGHT = 25;
+    const GRID_HEIGHT = GRID_VISIBLE_ROWS * GRID_ROW_HEIGHT + 10;
+
+    if (window.DevExpress?.ui?.dxDataGrid) {
+        DevExpress.ui.dxDataGrid.defaultOptions({
+            options: {
+                rowHeight: GRID_ROW_HEIGHT,
+                height: GRID_HEIGHT,
+                scrolling: {
+                    mode: 'virtual'
+                },
+                editing: {
+                    useIcons: true
+                },
+                onContentReady: (e) => {
+                    const comp = e?.component;
+                    if (!comp || typeof comp.getDataSource !== 'function') return;
+                    const ds = comp.getDataSource();
+                    let total = 0;
+                    if (ds) {
+                        const tc = typeof ds.totalCount === 'function' ? ds.totalCount() : null;
+                        if (typeof tc === 'number' && !Number.isNaN(tc)) {
+                            total = tc;
+                        } else if (typeof ds.items === 'function') {
+                            total = ds.items().length;
+                        } else if (Array.isArray(ds._items)) {
+                            total = ds._items.length;
+                        }
+                    }
+                    const show = total > 25;
+                    const filterRow = comp.option('filterRow') || {};
+                    // const headerFilter = comp.option('headerFilter') || {};
+                    comp.option('filterRow', { ...filterRow, visible: show });
+                    // comp.option('headerFilter', { ...headerFilter, visible: show });
+                }
+            }
+        });
+    }
     // Add a dropdown button to the top menu
     const dropdown = $('<div>', { class: 'dropdown' });
     const button = $('<button>', { class: 'user-menu-button dropdown-toggle', 'aria-label': 'User menu' })
@@ -135,6 +174,7 @@ $(document).ready(function() {
                     const token = json?.data?.token;
                     const roles = json?.data?.roles;
                     const avatar = json?.data?.avatar;
+                    const canUseKpiTools = !!(json?.data?.meta?.['Can-use-kpi-tools'] || json?.data?.meta?.canUseKpiTools);
                     console.log('avatar logon Data: ',avatar);
                     if (token) {
                         localStorage.setItem('auth_token', token);
@@ -142,6 +182,7 @@ $(document).ready(function() {
                     if (roles) {
                         localStorage.setItem('auth_roles', JSON.stringify(roles));
                     }
+                    localStorage.setItem('auth_kpi_tools', JSON.stringify(canUseKpiTools));
                     if (avatar) {
                         updateUserAvatar(avatar);
                     } else {
@@ -212,6 +253,30 @@ $(document).ready(function() {
             }
             dropdownMenu.hide();
         } },
+        { id: 'menuKpiEntry', text: 'KPI Entry', action: () => {
+            if (typeof window.renderKpiEntry === 'function') {
+                window.renderKpiEntry();
+            }
+            dropdownMenu.hide();
+        } },
+        { id: 'menuKpiDashboard', text: 'KPI Dashboard', action: () => {
+            if (typeof window.renderKpiDashboard === 'function') {
+                window.renderKpiDashboard();
+            }
+            dropdownMenu.hide();
+        } },
+        { id: 'menuKpiTools', text: 'KPI Tools', action: () => {
+            if (typeof window.renderKpiTools === 'function') {
+                window.renderKpiTools();
+            }
+            dropdownMenu.hide();
+        } },
+        { id: 'menuCommonReport', text: 'Common Report', action: () => {
+            if (typeof window.renderCommonReport === 'function') {
+                window.renderCommonReport();
+            }
+            dropdownMenu.hide();
+        } },
         { id: 'menuUserManagement', text: 'User Management', action: () => {
             if (typeof window.renderUserManagement === 'function') {
                 window.renderUserManagement();
@@ -235,6 +300,7 @@ $(document).ready(function() {
         { id: 'menuLogout', text: 'Logout', action: () => {
             localStorage.removeItem('auth_token');
             localStorage.removeItem('auth_roles');
+            localStorage.removeItem('auth_kpi_tools');
             updateUserAvatar(null);
             updateAuthUI(false);
             showPage('dashboard');
@@ -267,7 +333,7 @@ $(document).ready(function() {
 
     function updateAuthUI(isLoggedIn) {
         const showWhenLoggedOut = ['menuSignup', 'menuLogin'];
-        const showWhenLoggedIn = ['menuSettingsPersonal', 'menuLogout', 'menuSchedule', 'menuChangeRequest', 'menuScheduleSummary'];
+        const showWhenLoggedIn = ['menuSettingsPersonal', 'menuLogout', 'menuSchedule', 'menuChangeRequest', 'menuScheduleSummary', 'menuKpiEntry', 'menuKpiDashboard', 'menuKpiTools', 'menuCommonReport'];
 
         showWhenLoggedOut.forEach(id => {
             if (menuButtons[id]) menuButtons[id].toggle(!isLoggedIn);
@@ -289,6 +355,18 @@ $(document).ready(function() {
         if (menuButtons.menuScheduleSummary) {
             menuButtons.menuScheduleSummary.toggle(isLoggedIn && isHead);
         }
+        if (menuButtons.menuKpiEntry) {
+            menuButtons.menuKpiEntry.toggle(isLoggedIn && isHead);
+        }
+        if (menuButtons.menuKpiDashboard) {
+            menuButtons.menuKpiDashboard.toggle(isLoggedIn && (isAdmin || isHead || roles.includes('finance')));
+        }
+        if (menuButtons.menuKpiTools) {
+            menuButtons.menuKpiTools.toggle(isLoggedIn && getStoredKpiTools());
+        }
+        if (menuButtons.menuCommonReport) {
+            menuButtons.menuCommonReport.toggle(isLoggedIn && (isAdmin || isHead || roles.includes('finance')));
+        }
         if (menuButtons.menuUserManagement) {
             menuButtons.menuUserManagement.toggle(isLoggedIn && isAdmin);
         }
@@ -305,6 +383,16 @@ $(document).ready(function() {
             return Array.isArray(roles) ? roles : [];
         } catch {
             return [];
+        }
+    }
+
+    function getStoredKpiTools() {
+        const stored = localStorage.getItem('auth_kpi_tools');
+        if (!stored) return false;
+        try {
+            return !!JSON.parse(stored);
+        } catch {
+            return false;
         }
     }
 
@@ -356,6 +444,9 @@ $(document).ready(function() {
                 if (json?.data?.avatar) {
                     updateUserAvatar(json.data.avatar);
                 }
+                const canUseKpiTools = !!(json?.data?.meta?.['Can-use-kpi-tools'] || json?.data?.meta?.canUseKpiTools);
+                localStorage.setItem('auth_kpi_tools', JSON.stringify(canUseKpiTools));
+                updateAuthUI(true);
             })
             .catch(() => {});
         if (typeof window.renderSchedule === 'function') {
@@ -366,6 +457,7 @@ $(document).ready(function() {
     // expose helpers for personal.js and master.js
     window.showPage = showPage;
     window.getStoredRoles = getStoredRoles;
+    window.getStoredKpiTools = getStoredKpiTools;
     window.updateUserAvatar = updateUserAvatar;
     window.resolveAvatarUrl = resolveAvatarUrl;
 

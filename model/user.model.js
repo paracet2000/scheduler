@@ -52,7 +52,11 @@ const userSchema = new mongoose.Schema({
 
   emailVerifiedAt: Date,
 
-  emailVerifyToken: String
+  emailVerifyToken: String,
+  meta: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {}
+  }
 
 }, { timestamps: true })
 

@@ -123,7 +123,7 @@ exports.updateUser = asyncHandler(async (req, res) => {
   ensureAdminOrHr(req.user);
 
   const { id } = req.params;
-  const { name, phone, roles, status } = req.body;
+  const { name, phone, roles, status, meta } = req.body;
 
   const user = await User.findById(id).select('-password');
   if (!user) {
@@ -135,6 +135,9 @@ exports.updateUser = asyncHandler(async (req, res) => {
   if (Array.isArray(roles)) user.roles = roles;
   if (status && ['ACTIVE', 'INACTIVE'].includes(status)) {
     user.status = status;
+  }
+  if (meta !== undefined) {
+    user.meta = meta;
   }
 
   await user.save();

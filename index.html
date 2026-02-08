@@ -21,6 +21,11 @@
           href="https://cdn3.devexpress.com/jslib/25.2.4/css/dx.softblue.compact.css" />
     <script src="https://cdn3.devexpress.com/jslib/25.2.4/js/dx.all.js"></script>
 
+    <!-- DevExtreme Export Dependencies -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
     <!-- App -->
     <link rel="stylesheet" href="styles.css" />
     <script src="js/personal.js" defer></script>
@@ -29,6 +34,10 @@
     <script src="js/schedulesummary.js" defer></script>
     <script src="js/userManagement.js" defer></script>
     <script src="js/schedule.js" defer></script>
+    <script src="js/kpi.js" defer></script>
+    <script src="js/kpi-dashboard.js" defer></script>
+    <script src="js/kpi-tools.js" defer></script>
+    <script src="js/commonreport.js" defer></script>
     <script src="js/index.js" defer></script>
 </head>
 
@@ -89,6 +98,14 @@
             <div id="userManagement" class="page pagehidden">
                 <div id="userGrid"></div>
             </div>
+
+            <div id="kpiEntry" class="page pagehidden">
+                <div id="kpiEntryForm"></div>
+            </div>
+
+            <div id="kpiDashboard" class="page pagehidden"></div>
+            <div id="kpiTools" class="page pagehidden"></div>
+            <div id="commonReport" class="page pagehidden"></div>
 
         </main>
     </div>

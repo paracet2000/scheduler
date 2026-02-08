@@ -355,3 +355,147 @@ exports.summaryByWard = asyncHandler(async (req, res) => {
     rows
   }, 'Schedule summary');
 });
+
+/**
+ * HEAD / ADMIN: summary by ward (range)
+ * GET /api/schedules/summary-range/:wardId?from=2026-02-01&to=2026-02-28&positions=GN,CLERK
+ */
+exports.summaryByWardRange = asyncHandler(async (req, res) => {
+  const { wardId } = req.params;
+  const { from, to, positions } = req.query;
+
+  if (!wardId || !from || !to) {
+    throw new AppError('wardId, from and to are required', 400);
+  }
+
+  const start = new Date(from);
+  const end = new Date(to);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    throw new AppError('Invalid from/to date', 400);
+  }
+
+  start.setHours(0, 0, 0, 0);
+  end.setHours(23, 59, 59, 999);
+
+  if (end < start) {
+    throw new AppError('Invalid date range', 400);
+  }
+
+  let positionList = [];
+  if (Array.isArray(positions)) {
+    positionList = positions.filter(Boolean);
+  } else if (typeof positions === 'string' && positions.trim()) {
+    positionList = positions.split(',').map(p => p.trim()).filter(Boolean);
+  }
+
+  const userWardQuery = {
+    wardId,
+    status: 'ACTIVE'
+  };
+
+  if (positionList.length) {
+    userWardQuery.position = { $in: positionList };
+  }
+
+  const userWards = await WardMember.find(userWardQuery)
+    .populate('userId', 'name employeeCode avatar')
+    .lean();
+
+  const userIds = userWards
+    .map(uw => uw.userId?._id)
+    .filter(Boolean);
+
+  const schedules = userIds.length
+    ? await Schedule.find({
+        wardId,
+        userId: { $in: userIds },
+        workDate: { $gte: start, $lte: end },
+        status: { $ne: 'INACTIVE' }
+      })
+        .select('userId workDate shiftCode meta')
+        .lean()
+    : [];
+
+  const shifts = await Master.find({ type: 'SHIFT', status: 'ACTIVE' })
+    .select('code meta')
+    .lean();
+
+  const shiftMeta = new Map(
+    shifts.map(s => [String(s.code).toUpperCase(), s.meta || {}])
+  );
+
+  const getBucket = (code) => {
+    const upper = String(code || '').toUpperCase();
+    const meta = shiftMeta.get(upper) || {};
+    const raw = String(
+      meta.bucket || meta.shift || meta.period || meta.group || meta.slot || ''
+    ).toLowerCase();
+
+    if (['m', 'morning', 'am', 'day'].includes(raw)) return 'morning';
+    if (['a', 'afternoon', 'pm', 'evening'].includes(raw)) return 'afternoon';
+    if (['n', 'night'].includes(raw)) return 'night';
+
+    if (upper.startsWith('M')) return 'morning';
+    if (upper.startsWith('A')) return 'afternoon';
+    if (upper.startsWith('N')) return 'night';
+
+    return 'other';
+  };
+
+  const dates = [];
+  const MS_PER_DAY = 24 * 60 * 60 * 1000;
+  const daysCount = Math.floor((end.getTime() - start.getTime()) / MS_PER_DAY) + 1;
+  for (let i = 0; i < daysCount; i += 1) {
+    const d = new Date(start.getTime() + i * MS_PER_DAY);
+    dates.push(d.toISOString());
+  }
+
+  const rowsMap = new Map();
+  userWards.forEach(uw => {
+    const user = uw.userId || {};
+    const id = String(user._id || '');
+    if (!id) return;
+    rowsMap.set(id, {
+      userId: id,
+      name: user.name || '',
+      employeeCode: user.employeeCode || '',
+      avatar: user.avatar || '',
+      position: uw.position || '',
+      days: Array.from({ length: daysCount }, () => []),
+      dayChange: Array.from({ length: daysCount }, () => false),
+      totals: { morning: 0, afternoon: 0, night: 0, total: 0 }
+    });
+  });
+
+  schedules.forEach(s => {
+    const id = String(s.userId);
+    const row = rowsMap.get(id);
+    if (!row) return;
+    const dayDate = new Date(s.workDate);
+    dayDate.setHours(0, 0, 0, 0);
+    const idx = Math.floor((dayDate.getTime() - start.getTime()) / MS_PER_DAY);
+    if (idx < 0 || idx >= daysCount) return;
+    const label = String(s.shiftCode).toUpperCase();
+    row.days[idx].push(label);
+    if (s.meta?.changeStatus === 'OPEN') row.dayChange[idx] = 'OPEN';
+    if (s.meta?.changeStatus === 'ACCEPTED') row.dayChange[idx] = 'ACCEPTED';
+    if (s.meta?.changeStatus === 'APPROVED') row.dayChange[idx] = 'APPROVED';
+    if (s.meta?.changeStatus === 'REJECTED') row.dayChange[idx] = 'REJECTED';
+    row.totals.total += 1;
+    const bucket = getBucket(s.shiftCode);
+    if (bucket === 'morning') row.totals.morning += 1;
+    if (bucket === 'afternoon') row.totals.afternoon += 1;
+    if (bucket === 'night') row.totals.night += 1;
+  });
+
+  const rows = Array.from(rowsMap.values())
+    .sort((a, b) => a.name.localeCompare(b.name, 'th'));
+
+  response.success(res, {
+    wardId,
+    from: start.toISOString(),
+    to: end.toISOString(),
+    dates,
+    rows
+  }, 'Schedule summary (range)');
+});

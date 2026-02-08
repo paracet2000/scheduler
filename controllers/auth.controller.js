@@ -77,6 +77,7 @@ exports.login = asyncHandler(async (req, res) => {
     {
       roles: user.roles,
       avatar: user.avatar,
+      meta: user.meta || {},
       token
     },
     'Login successful'

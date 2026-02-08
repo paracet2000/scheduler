@@ -35,6 +35,7 @@ app.use('/api/ward-members', require('./routes/wardmember.routes'));
 app.use('/api/code-mappings', require('./routes/codemapping.routes'));
 app.use('/api/user-shift-rates', require('./routes/user-shift-rate.routes'));
 app.use('/api/attendance', require('./routes/attendance.routes'));
+app.use('/api/kpi', require('./routes/kpi.routes'));
 app.use('/api/schedules', require('./routes/schedule.routes'));
 app.use('/api/scheduler-heads', require('./routes/scheduler.head.router'));
 app.use('/api/changes', require('./routes/changerequest.routes'));

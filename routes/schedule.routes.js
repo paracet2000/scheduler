@@ -52,6 +52,15 @@ router.get(
   ctrl.summaryByWard
 );
 
+// summary by ward (range)
+router.get(
+  '/summary-range/:wardId',
+  auth,
+  // TODO: Re-enable authorizeWard when ward-member mapping is ready.
+  // authorizeWard(['HEAD', 'ADMIN']),
+  ctrl.summaryByWardRange
+);
+
 // ดูตารางราย ward
 router.get(
   '/ward/:wardId',

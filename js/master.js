@@ -357,18 +357,7 @@ window.renderSystemSettings = async function renderSystemSettings() {
                         dataSource: ['ACTIVE', 'INACTIVE']
                     }
                 }
-            ].concat(String(typeCode).toUpperCase() === 'SHIFT'
-                ? [
-                    {
-                        dataField: 'meta.timeFrom',
-                        caption: 'Time From'
-                    },
-                    {
-                        dataField: 'meta.timeTo',
-                        caption: 'Time To'
-                    }
-                ]
-                : []),
+            ],
             onRowInserting: async (e) => {
                 const payload = {
                     userId: e.data.userId,
@@ -461,6 +450,10 @@ window.renderSystemSettings = async function renderSystemSettings() {
             keyExpr: '_id',
             showBorders: true,
             columnAutoWidth: true,
+            // filterRow: { visible: true },
+            // headerFilter: { visible: true },
+            ShowGroupPanel:"true",
+            grouping: { autoExpandAll: true },
             paging: { pageSize: 10 },
             editing: {
                 mode: 'row',
@@ -482,6 +475,7 @@ window.renderSystemSettings = async function renderSystemSettings() {
                 {
                     dataField: 'shiftCode',
                     caption: 'Shift',
+                    groupIndex: 0,
                     lookup: {
                         dataSource: shifts,
                         valueExpr: 'code',
@@ -541,6 +535,395 @@ window.renderSystemSettings = async function renderSystemSettings() {
                         'Content-Type': 'application/json',
                         ...authHeaders()
                     },
+                    body: JSON.stringify(payload)
+                });
+                const json = await res.json();
+                if (!res.ok) {
+                    e.cancel = true;
+                    DevExpress.ui.notify(json.message || 'Update failed', 'error', 3000);
+                    return;
+                }
+                DevExpress.ui.notify('Updated', 'success', 2000);
+            }
+        });
+    };
+
+    const renderKpiDefinitionSection = async () => {
+        systemContent.empty();
+
+        const apiBase = window.BASE_URL || 'http://localhost:3000';
+        let items = [];
+
+        try {
+            const res = await fetch(`${apiBase}/api/kpi/definitions`, { headers: authHeaders() });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.message || 'Failed to load KPI definitions');
+            items = Array.isArray(json.data) ? json.data : [];
+        } catch (err) {
+            systemContent.append(
+                $('<div>', {
+                    class: 'settings-placeholder',
+                    text: err.message || 'Unable to load KPI definitions.'
+                })
+            );
+            return;
+        }
+
+        const gridEl = $('<div>', { id: 'kpiDefinitionGrid' });
+        systemContent.append(gridEl);
+
+        gridEl.dxDataGrid({
+            dataSource: items,
+            keyExpr: '_id',
+            showBorders: true,
+            columnAutoWidth: true,
+            paging: { pageSize: 10 },
+            editing: {
+                mode: 'row',
+                allowAdding: true,
+                allowUpdating: true,
+                allowDeleting: false
+            },
+            columns: [
+                {
+                    dataField: 'code',
+                    caption: 'Code',
+                    validationRules: [{ type: 'required' }]
+                },
+                {
+                    dataField: 'name',
+                    caption: 'Name',
+                    validationRules: [{ type: 'required' }]
+                },
+                { dataField: 'description', caption: 'Description' },
+                {
+                    dataField: 'valueType',
+                    caption: 'Value Type',
+                    lookup: {
+                        dataSource: ['number', 'text', 'boolean', 'select', 'group']
+                    }
+                },
+                {
+                    dataField: 'options',
+                    caption: 'Options',
+                    calculateCellValue: (row) => Array.isArray(row.options) ? row.options.join(', ') : '',
+                    editCellTemplate: (cellElement, cellInfo) => {
+                        $('<div>').appendTo(cellElement).dxTagBox({
+                            items: [],
+                            value: Array.isArray(cellInfo.value) ? cellInfo.value : [],
+                            onValueChanged(e) {
+                                cellInfo.setValue(e.value);
+                            }
+                        });
+                    }
+                },
+                {
+                    dataField: 'unit',
+                    caption: 'Unit',
+                    width:50
+                },
+                {
+                    dataField: 'required',
+                    caption: 'Required',
+                    dataType: 'boolean',
+                    width:50
+                },
+                {
+                    dataField: 'order',
+                    caption: 'Order',
+                    dataType: 'number',
+                    width:50
+                },
+                {
+                    dataField: 'status',
+                    caption: 'Status',
+                    lookup: {
+                        dataSource: ['ACTIVE', 'INACTIVE']
+                    }
+                }
+            ],
+            onRowInserting: async (e) => {
+                const payload = { ...e.data };
+                const res = await fetch(`${apiBase}/api/kpi/definitions`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+                    body: JSON.stringify(payload)
+                });
+                const json = await res.json();
+                if (!res.ok) {
+                    e.cancel = true;
+                    DevExpress.ui.notify(json.message || 'Create failed', 'error', 3000);
+                    return;
+                }
+                e.data._id = json.data?._id || e.data._id;
+                DevExpress.ui.notify('Created', 'success', 2000);
+            },
+            onRowUpdating: async (e) => {
+                const id = e.key;
+                const payload = { ...e.oldData, ...e.newData };
+                const res = await fetch(`${apiBase}/api/kpi/definitions/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+                    body: JSON.stringify(payload)
+                });
+                const json = await res.json();
+                if (!res.ok) {
+                    e.cancel = true;
+                    DevExpress.ui.notify(json.message || 'Update failed', 'error', 3000);
+                    return;
+                }
+                DevExpress.ui.notify('Updated', 'success', 2000);
+            }
+        });
+    };
+
+    const renderKpiDashboardWidgetSection = async () => {
+        systemContent.empty();
+
+        const apiBase = window.BASE_URL || 'http://localhost:3000';
+        let items = [];
+        let definitions = [];
+
+        try {
+            const [widgetRes, defRes] = await Promise.all([
+                fetch(`${apiBase}/api/kpi/dashboard/widgets`, { headers: authHeaders() }),
+                fetch(`${apiBase}/api/kpi/definitions?status=ACTIVE`, { headers: authHeaders() })
+            ]);
+            const widgetJson = await widgetRes.json();
+            const defJson = await defRes.json();
+            if (!widgetRes.ok) throw new Error(widgetJson.message || 'Failed to load KPI dashboard widgets');
+            if (!defRes.ok) throw new Error(defJson.message || 'Failed to load KPI definitions');
+            items = Array.isArray(widgetJson.data) ? widgetJson.data : [];
+            definitions = Array.isArray(defJson.data) ? defJson.data : [];
+        } catch (err) {
+            systemContent.append(
+                $('<div>', {
+                    class: 'settings-placeholder',
+                    text: err.message || 'Unable to load KPI dashboard widgets.'
+                })
+            );
+            return;
+        }
+        const definitionCodes = definitions
+            .filter(d => d && d.valueType !== 'group')
+            .map(d => String(d.code || '').toUpperCase())
+            .filter(Boolean);
+
+        const gridEl = $('<div>', { id: 'kpiDashboardWidgetGrid' });
+        systemContent.append(gridEl);
+
+        gridEl.dxDataGrid({
+            dataSource: items,
+            keyExpr: '_id',
+            showBorders: true,
+            columnAutoWidth: true,
+            paging: { pageSize: 10 },
+            editing: {
+                mode: 'row',
+                allowAdding: true,
+                allowUpdating: true,
+                allowDeleting: false
+            },
+            columns: [
+                { dataField: 'code', caption: 'Code', validationRules: [{ type: 'required' }] },
+                { dataField: 'title', caption: 'Title', validationRules: [{ type: 'required' }] },
+                { dataField: 'description', caption: 'Description' },
+                {
+                    dataField: 'calc',
+                    caption: 'Calc',
+                    lookup: { dataSource: ['sum', 'avg', 'ratio', 'count'] }
+                },
+                {
+                    dataField: 'sourceCodes',
+                    caption: 'Source Codes',
+                    calculateCellValue: (row) => Array.isArray(row.sourceCodes) ? row.sourceCodes.join(', ') : '',
+                    editCellTemplate: (cellElement, cellInfo) => {
+                        $('<div>').appendTo(cellElement).dxTagBox({
+                            items: definitionCodes,
+                            value: Array.isArray(cellInfo.value) ? cellInfo.value : [],
+                            onValueChanged(e) {
+                                cellInfo.setValue(e.value);
+                            }
+                        });
+                    }
+                },
+                {
+                    dataField: 'numeratorCodes',
+                    caption: 'Numerator',
+                    calculateCellValue: (row) => Array.isArray(row.numeratorCodes) ? row.numeratorCodes.join(', ') : '',
+                    editCellTemplate: (cellElement, cellInfo) => {
+                        $('<div>').appendTo(cellElement).dxTagBox({
+                            items: definitionCodes,
+                            value: Array.isArray(cellInfo.value) ? cellInfo.value : [],
+                            onValueChanged(e) {
+                                cellInfo.setValue(e.value);
+                            }
+                        });
+                    }
+                },
+                {
+                    dataField: 'denominatorCodes',
+                    caption: 'Denominator',
+                    calculateCellValue: (row) => Array.isArray(row.denominatorCodes) ? row.denominatorCodes.join(', ') : '',
+                    editCellTemplate: (cellElement, cellInfo) => {
+                        $('<div>').appendTo(cellElement).dxTagBox({
+                            items: definitionCodes,
+                            value: Array.isArray(cellInfo.value) ? cellInfo.value : [],
+                            onValueChanged(e) {
+                                cellInfo.setValue(e.value);
+                            }
+                        });
+                    }
+                },
+                { dataField: 'unit', caption: 'Unit', width: 80 },
+                {
+                    dataField: 'roles',
+                    caption: 'Roles',
+                    calculateCellValue: (row) => Array.isArray(row.roles) ? row.roles.join(', ') : '',
+                    editCellTemplate: (cellElement, cellInfo) => {
+                        $('<div>').appendTo(cellElement).dxTagBox({
+                            items: ['admin', 'head', 'finance', 'hr'],
+                            value: Array.isArray(cellInfo.value) ? cellInfo.value : [],
+                            onValueChanged(e) {
+                                cellInfo.setValue(e.value);
+                            }
+                        });
+                    }
+                },
+                { dataField: 'order', caption: 'Order', dataType: 'number', width: 70 },
+                {
+                    dataField: 'status',
+                    caption: 'Status',
+                    lookup: { dataSource: ['ACTIVE', 'INACTIVE'] }
+                }
+            ],
+            onRowInserting: async (e) => {
+                const payload = { ...e.data };
+                const res = await fetch(`${apiBase}/api/kpi/dashboard/widgets`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+                    body: JSON.stringify(payload)
+                });
+                const json = await res.json();
+                if (!res.ok) {
+                    e.cancel = true;
+                    DevExpress.ui.notify(json.message || 'Create failed', 'error', 3000);
+                    return;
+                }
+                e.data._id = json.data?._id || e.data._id;
+                DevExpress.ui.notify('Created', 'success', 2000);
+            },
+            onRowUpdating: async (e) => {
+                const id = e.key;
+                const payload = { ...e.oldData, ...e.newData };
+                const res = await fetch(`${apiBase}/api/kpi/dashboard/widgets/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+                    body: JSON.stringify(payload)
+                });
+                const json = await res.json();
+                if (!res.ok) {
+                    e.cancel = true;
+                    DevExpress.ui.notify(json.message || 'Update failed', 'error', 3000);
+                    return;
+                }
+                DevExpress.ui.notify('Updated', 'success', 2000);
+            }
+        });
+    };
+
+    const renderKpiThresholdSection = async () => {
+        systemContent.empty();
+
+        const apiBase = window.BASE_URL || 'http://localhost:3000';
+        let items = [];
+        let widgets = [];
+
+        try {
+            const [widgetRes, listRes] = await Promise.all([
+                fetch(`${apiBase}/api/kpi/dashboard/widgets`, { headers: authHeaders() }),
+                fetch(`${apiBase}/api/kpi/dashboard/thresholds`, { headers: authHeaders() })
+            ]);
+            const widgetJson = await widgetRes.json();
+            const listJson = await listRes.json();
+            if (!widgetRes.ok) throw new Error(widgetJson.message || 'Failed to load widgets');
+            if (!listRes.ok) throw new Error(listJson.message || 'Failed to load thresholds');
+            widgets = Array.isArray(widgetJson.data) ? widgetJson.data : [];
+            items = Array.isArray(listJson.data) ? listJson.data : [];
+        } catch (err) {
+            systemContent.append(
+                $('<div>', {
+                    class: 'settings-placeholder',
+                    text: err.message || 'Unable to load KPI thresholds.'
+                })
+            );
+            return;
+        }
+
+        const widgetLookup = widgets.map(w => ({
+            code: w.code,
+            title: w.title
+        }));
+
+        const gridEl = $('<div>', { id: 'kpiThresholdGrid' });
+        systemContent.append(gridEl);
+
+        gridEl.dxDataGrid({
+            dataSource: items,
+            keyExpr: 'widgetCode',
+            showBorders: true,
+            columnAutoWidth: true,
+            paging: { pageSize: 10 },
+            editing: {
+                mode: 'row',
+                allowAdding: true,
+                allowUpdating: true,
+                allowDeleting: false
+            },
+            columns: [
+                {
+                    dataField: 'widgetCode',
+                    caption: 'Widget',
+                    lookup: {
+                        dataSource: widgetLookup,
+                        valueExpr: 'code',
+                        displayExpr: (item) => item ? `${item.code} - ${item.title}` : ''
+                    },
+                    validationRules: [{ type: 'required' }]
+                },
+                { dataField: 'greenMin', caption: 'Green Min', dataType: 'number' },
+                { dataField: 'greenMax', caption: 'Green Max', dataType: 'number' },
+                { dataField: 'amberMin', caption: 'Amber Min', dataType: 'number' },
+                { dataField: 'amberMax', caption: 'Amber Max', dataType: 'number' },
+                { dataField: 'redMin', caption: 'Red Min', dataType: 'number' },
+                { dataField: 'redMax', caption: 'Red Max', dataType: 'number' },
+                {
+                    dataField: 'status',
+                    caption: 'Status',
+                    lookup: { dataSource: ['ACTIVE', 'INACTIVE'] }
+                }
+            ],
+            onRowInserting: async (e) => {
+                const payload = { ...e.data };
+                const res = await fetch(`${apiBase}/api/kpi/dashboard/thresholds`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+                    body: JSON.stringify(payload)
+                });
+                const json = await res.json();
+                if (!res.ok) {
+                    e.cancel = true;
+                    DevExpress.ui.notify(json.message || 'Create failed', 'error', 3000);
+                    return;
+                }
+                e.data.widgetCode = json.data?.widgetCode || e.data.widgetCode;
+                DevExpress.ui.notify('Saved', 'success', 2000);
+            },
+            onRowUpdating: async (e) => {
+                const payload = { ...e.oldData, ...e.newData };
+                const res = await fetch(`${apiBase}/api/kpi/dashboard/thresholds`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', ...authHeaders() },
                     body: JSON.stringify(payload)
                 });
                 const json = await res.json();
@@ -906,6 +1289,18 @@ window.renderSystemSettings = async function renderSystemSettings() {
             await renderCodeMappingSection();
             return;
         }
+        if (item && item._type === 'kpiDefinition') {
+            await renderKpiDefinitionSection();
+            return;
+        }
+        if (item && item._type === 'kpiDashboardWidget') {
+            await renderKpiDashboardWidgetSection();
+            return;
+        }
+        if (item && item._type === 'kpiThreshold') {
+            await renderKpiThresholdSection();
+            return;
+        }
         const meta = item.meta || {};
         const hint = meta.hint || 'Master type';
 
@@ -1064,15 +1459,33 @@ window.renderSystemSettings = async function renderSystemSettings() {
         },
         {
             _id: 'CODE_MAPPING',
-            name: 'Code Mapping',
-            meta: { color: '#94a3b8', icon: 'cm', hint: 'รหัสเครื่องสแกน ↔ ผู้ใช้' },
+            name: 'Employee Code Mapping',
+            meta: { color: '#94a3b8', icon: 'cm', hint: 'ตั้งรหัส พนง.เครื่องสแกน ↔ ผู้ใช้' },
             _type: 'codeMapping'
+        },
+        {
+            _id: 'KPI_DEFINITION',
+            name: 'Shift Data Definition',
+            meta: { color: '#8b5cf6', icon: 'kd', hint: 'กำหนดโครงการสรุปข้อมูลเวร' },
+            _type: 'kpiDefinition'
+        },
+        {
+            _id: 'KPI_DASHBOARD_WIDGET',
+            name: 'KPI Dashboard Widgets',
+            meta: { color: '#0ea5e9', icon: 'dw', hint: 'ออกแบบ Dasboard' },
+            _type: 'kpiDashboardWidget'
+        },
+        {
+            _id: 'KPI_THRESHOLD',
+            name: 'KPI Thresholds',
+            meta: { color: '#f59e0b', icon: 'th', hint: 'ตั้งค่าเป้าหมาย (สูง-ปานกลาง-ต่ำ)' },
+            _type: 'kpiThreshold'
         },
         ...items
     ];
 
     const systemItems = (isHr && !(isAdmin || isHead))
-        ? baseSystemItems.filter(i => i._type === 'codeMapping')
+        ? baseSystemItems.filter(i => i._type === 'codeMapping' || i._type === 'kpiDefinition' || i._type === 'kpiDashboardWidget' || i._type === 'kpiThreshold')
         : baseSystemItems;
 
     const targetType = window.systemSettingsTarget;
