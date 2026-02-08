@@ -1,7 +1,7 @@
 // services/schedulepolicy.service.js
 
 const SchedulerHead = require('../models/scheduler.head.model');
-const AppError = require('../utils/apperror');
+const AppError = require('../helpers/apperror');
 
 /**
  * =========================
