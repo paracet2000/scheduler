@@ -42,7 +42,7 @@ window.renderSystemSettings = async function renderSystemSettings() {
         if (cacheValid) {
             items = JSON.parse(cached);
         } else {
-            const apiBase = window.BASE_URL || 'http://localhost:3000';
+            const apiBase = window.BASE_URL || '';
             const res = await fetch(`${apiBase}/api/master-types`, {
                 headers: token ? { Authorization: `Bearer ${token}` } : {}
             });
@@ -68,7 +68,7 @@ window.renderSystemSettings = async function renderSystemSettings() {
     const renderSchedulerHeadSection = async () => {
         systemContent.empty();
 
-        const apiBase = window.BASE_URL || 'http://localhost:3000';
+        const apiBase = window.BASE_URL || '';
         let wards = [];
         let heads = [];
 
@@ -244,7 +244,7 @@ window.renderSystemSettings = async function renderSystemSettings() {
     const renderWardMemberSection = async () => {
         systemContent.empty();
 
-        const apiBase = window.BASE_URL || 'http://localhost:3000';
+        const apiBase = window.BASE_URL || '';
         let meta = {};
         let items = [];
 
@@ -409,7 +409,7 @@ window.renderSystemSettings = async function renderSystemSettings() {
     const renderUserShiftRateSection = async () => {
         systemContent.empty();
 
-        const apiBase = window.BASE_URL || 'http://localhost:3000';
+        const apiBase = window.BASE_URL || '';
         let meta = {};
         let items = [];
 
@@ -551,7 +551,7 @@ window.renderSystemSettings = async function renderSystemSettings() {
     const renderKpiDefinitionSection = async () => {
         systemContent.empty();
 
-        const apiBase = window.BASE_URL || 'http://localhost:3000';
+        const apiBase = window.BASE_URL || '';
         let items = [];
 
         try {
@@ -680,7 +680,7 @@ window.renderSystemSettings = async function renderSystemSettings() {
     const renderKpiDashboardWidgetSection = async () => {
         systemContent.empty();
 
-        const apiBase = window.BASE_URL || 'http://localhost:3000';
+        const apiBase = window.BASE_URL || '';
         let items = [];
         let definitions = [];
 
@@ -835,7 +835,7 @@ window.renderSystemSettings = async function renderSystemSettings() {
     const renderKpiThresholdSection = async () => {
         systemContent.empty();
 
-        const apiBase = window.BASE_URL || 'http://localhost:3000';
+        const apiBase = window.BASE_URL || '';
         let items = [];
         let widgets = [];
 
@@ -940,7 +940,7 @@ window.renderSystemSettings = async function renderSystemSettings() {
     const renderCodeMappingSection = async () => {
         systemContent.empty();
 
-        const apiBase = window.BASE_URL || 'http://localhost:3000';
+        const apiBase = window.BASE_URL || '';
         let meta = {};
         let items = [];
 
@@ -1307,7 +1307,7 @@ window.renderSystemSettings = async function renderSystemSettings() {
         const gridEl = $('<div>', { id: 'masterGrid' });
         systemContent.append(gridEl);
 
-        const apiBase = window.BASE_URL || 'http://localhost:3000';
+        const apiBase = window.BASE_URL || '';
         const typeCode = item.code;
 
         let gridData = [];

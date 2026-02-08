@@ -6,7 +6,7 @@ window.renderUserManagement = async function renderUserManagement() {
     }
 
     const token = localStorage.getItem('auth_token');
-    const apiBase = window.BASE_URL || 'http://localhost:3000';
+    const apiBase = window.BASE_URL || '';
 
     let users = [];
     try {

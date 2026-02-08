@@ -17,7 +17,7 @@ window.renderKpiDashboard = async function renderKpiDashboard() {
         return;
     }
 
-    const apiBase = window.BASE_URL || 'http://localhost:3000';
+    const apiBase = window.BASE_URL || '';
     const token = localStorage.getItem('auth_token');
     const authHeaders = () => (token ? { Authorization: `Bearer ${token}` } : {});
 

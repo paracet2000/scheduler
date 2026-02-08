@@ -24,7 +24,7 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
 
     const token = localStorage.getItem('auth_token');
     const authHeaders = () => (token ? { Authorization: `Bearer ${token}` } : {});
-    const apiBase = window.BASE_URL || 'http://localhost:3000';
+    const apiBase = window.BASE_URL || '';
     const initialFilters = options.filters || {};
 
     const filters = $('<div>', { class: 'summary-filters' });

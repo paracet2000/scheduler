@@ -5,7 +5,7 @@ window.renderPersonalSettings = async function renderPersonalSettings() {
         window.showPage('settingsPersonal');
     }
 
-    const apiBase = window.BASE_URL || 'http://localhost:3000';
+    const apiBase = window.BASE_URL || '';
     const token = localStorage.getItem('auth_token');
 
     $('#personalSettings').empty();

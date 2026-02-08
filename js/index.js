@@ -1,6 +1,6 @@
 // js/index.js
 $(document).ready(function() {
-    const BASE_URL = 'http://localhost:3000';
+    const BASE_URL = '';
     window.BASE_URL = BASE_URL;
     const GRID_VISIBLE_ROWS = 25;
     const GRID_ROW_HEIGHT = 25;
@@ -399,7 +399,7 @@ $(document).ready(function() {
     function resolveAvatarUrl(avatarUrl) {
         if (!avatarUrl) return '';
         if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) return avatarUrl;
-        const apiBase = window.BASE_URL || 'http://localhost:3000';
+        const apiBase = window.BASE_URL || '';
         return `${apiBase}${avatarUrl}`;
     }
 
@@ -435,7 +435,7 @@ $(document).ready(function() {
     updateAuthUI(!!initialToken);
 
     if (initialToken) {
-        const apiBase = window.BASE_URL || 'http://localhost:3000';
+        const apiBase = window.BASE_URL || '';
         fetch(`${apiBase}/api/users/me`, {
             headers: { Authorization: `Bearer ${initialToken}` }
         })
