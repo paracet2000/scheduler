@@ -11,16 +11,27 @@ window.renderPersonalSettings = async function renderPersonalSettings() {
     $('#personalSettings').empty();
 
     let profile = null;
+    let wardNames = '-';
     try {
         console.log('token Data on me: ',token);
-        const res = await fetch(`${apiBase}/api/users/me`, {
-            headers: token ? { Authorization: `Bearer ${token}` } : {}
-        });
+        const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+        const [res, wardRes] = await Promise.all([
+            fetch(`${apiBase}/api/users/me`, { headers: authHeaders }),
+            fetch(`${apiBase}/api/ward-members/mine`, { headers: authHeaders })
+        ]);
         const json = await res.json();
+        const wardJson = await wardRes.json();
         if (!res.ok) {
             throw new Error(json.message || 'Failed to load profile');
         }
         profile = json.data || null;
+        if (wardRes.ok) {
+            const wards = Array.isArray(wardJson.data) ? wardJson.data : [];
+            const names = wards
+                .map(w => w.name || w.code || '')
+                .filter(Boolean);
+            wardNames = names.length ? names.join(', ') : '-';
+        }
     } catch (err) {
         $('#personalSettings').append(
             $('<div>', { class: 'settings-placeholder', text: err.message || 'Unable to load profile.' })
@@ -48,7 +59,8 @@ window.renderPersonalSettings = async function renderPersonalSettings() {
 
     const meta = $('<div>', { class: 'profile-meta' })
         .append($('<div>', { class: 'profile-badge', text: `Status: ${profile?.status || 'ACTIVE'}` }))
-        .append($('<div>', { class: 'profile-badge', text: `Roles: ${(profile?.roles || []).join(', ') || '-'}` }));
+        .append($('<div>', { class: 'profile-badge', text: `Roles: ${(profile?.roles || []).join(', ') || '-'}` }))
+        .append($('<div>', { class: 'profile-badge', text: `Ward: ${wardNames}` }));
 
     const profileFormWrap = $('<div>', { class: 'profile-section' });
     const profileFormEl = $('<div>', { id: 'profileForm' });
