@@ -29,6 +29,7 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(requestLogger);
 app.use('/uploads', express.static(path.resolve('uploads')));
+app.use(express.static(path.resolve(__dirname)));
 
 /* =========================
  * Routes
@@ -46,6 +47,13 @@ app.use('/api/kpi', require('./routes/kpi.routes'));
 app.use('/api/schedules', require('./routes/schedule.routes'));
 app.use('/api/scheduler-heads', require('./routes/scheduler.head.router'));
 app.use('/api/changes', require('./routes/changerequest.routes'));
+
+/* =========================
+ * Frontend (index.html)
+ * ========================= */
+app.get('/', (req, res) => {
+  res.sendFile(path.resolve(__dirname, 'index.html'));
+});
 
 /* =========================
  * 404 Handler
