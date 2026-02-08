@@ -29,7 +29,7 @@ app.use('/uploads', express.static(path.resolve('uploads')));
 app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/users', require('./routes/user.routes'));
 app.use('/api/masters', require('./routes/master.routes'));
-app.use('/api/master-types', require('./routes/masterType.routes'));
+app.use('/api/master-types', require('./routes/mastertype.routes'));
 app.use('/api/master-patterns', require('./routes/masterpattern.routes'));
 app.use('/api/ward-members', require('./routes/wardmember.routes'));
 app.use('/api/code-mappings', require('./routes/codemapping.routes'));
