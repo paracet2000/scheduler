@@ -1,5 +1,7 @@
 // controllers/auth.controller.js
 const User = require('../model/user.model');
+const Master = require('../model/base/master.schema');
+const WardMember = require('../model/ward-member.model');
 const asyncHandler = require('../helpers/async.handler');
 const response = require('../helpers/response');
 const AppError = require('../helpers/apperror');
@@ -38,6 +40,32 @@ exports.register = asyncHandler(async (req, res) => {
     emailVerified: false,
     roles: roles.length ? roles : ['user']
   });
+
+  // Ensure TEMP_WARD exists, then assign new user as ward member
+  const tempWardCode = 'TEMP_WARD';
+  let tempWard = await Master.findOne({ type: 'WARD', code: tempWardCode });
+  if (!tempWard) {
+    tempWard = await Master.create({
+      code: tempWardCode,
+      name: 'Temporary Ward',
+      description: 'Temporary ward for newly registered users',
+      type: 'WARD',
+      status: 'ACTIVE',
+      meta: { group: 'TEMP' }
+    });
+  }
+
+  await WardMember.findOneAndUpdate(
+    { userId: user._id, wardId: tempWard._id },
+    {
+      $setOnInsert: {
+        position: 'GN',
+        status: 'ACTIVE',
+        createdBy: user._id
+      }
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
 
   const verifyLink = `${process.env.CLIENT_URL}/verify/${verifyToken}`;
   await mail.sendVerifyEmail(user.email, verifyLink);
