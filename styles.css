@@ -195,7 +195,7 @@ body {
 .page {
     /* max-width: 600px; */
     width: 100%;
-    background-color: transparent;
+    /* background-color: transparent; */
     border: 1px solid var(--border);
     border-radius: 7px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -203,6 +203,15 @@ body {
     /* background-image: url('./images/bg.png'); */
     min-height: calc(100vh - var(--header-height) );
     background-size: 100% 150%;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+#dashboard.page {
+    /* Subtle landing background before login or menu selection */
+    background-image:
+        linear-gradient(rgba(255, 255, 255, 0.9), rgba(155, 150, 202, 0.90)),url('./images/bg.png');
+    background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
 }
