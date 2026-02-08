@@ -1,12 +1,12 @@
 /**
- * masterType.seed.js
+ * mastertype.seed.js
  * ใช้สำหรับ seed master type data
- * run: node seed/masterType.seed.js
+ * run: node seed/mastertype.seed.js
  */
 
 require('dotenv').config();
 const mongoose = require('mongoose');
-const MasterType = require('../model/masterType.model');
+const MasterType = require('../model/mastertype.model');
 
 const masterTypes = [
   {

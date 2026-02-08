@@ -95,8 +95,25 @@ window.renderKpiDashboard = async function renderKpiDashboard() {
     const renderCards = (items) => {
         grid.empty();
         if (!items.length) {
-            grid.append($('<div>', { class: 'settings-placeholder', text: 'No KPI widgets configured.' }));
-            return;
+            const sample = {
+                title: 'ตัวอย่าง KPI',
+                name: 'ประสิทธิภาพการทำงาน',
+                value: 99,
+                unit: '%',
+                description: 'ตัวอย่าง',
+                status: 'green',
+                threshold: {
+                    redMin: 0,
+                    redMax: 25,
+                    purpleMin: 26,
+                    purpleMax: 49,
+                    amberMin: 50,
+                    amberMax: 79,
+                    greenMin: 80,
+                    greenMax: 100
+                }
+            };
+            items = [sample];
         }
         items.forEach(item => {
             const card = $('<div>', { class: `kpi-card kpi-card--${item.status || 'unknown'}` });
@@ -119,12 +136,14 @@ window.renderKpiDashboard = async function renderKpiDashboard() {
 
             const ranges = [];
             if (t.redMin !== null && t.redMax !== null) ranges.push({ startValue: t.redMin, endValue: t.redMax, color: '#ef4444' });
+            if (t.purpleMin !== null && t.purpleMax !== null) ranges.push({ startValue: t.purpleMin, endValue: t.purpleMax, color: '#8b5cf6' });
             if (t.amberMin !== null && t.amberMax !== null) ranges.push({ startValue: t.amberMin, endValue: t.amberMax, color: '#f59e0b' });
             if (t.greenMin !== null && t.greenMax !== null) ranges.push({ startValue: t.greenMin, endValue: t.greenMax, color: '#22c55e' });
             if (!ranges.length) {
-                ranges.push({ startValue: 0, endValue: 35, color: '#ef4444' });
-                ranges.push({ startValue: 35, endValue: 65, color: '#f59e0b' });
-                ranges.push({ startValue: 65, endValue: 100, color: '#22c55e' });
+                ranges.push({ startValue: 0, endValue: 25, color: '#ef4444' });
+                ranges.push({ startValue: 26, endValue: 49, color: '#8b5cf6' });
+                ranges.push({ startValue: 50, endValue: 79, color: '#f59e0b' });
+                ranges.push({ startValue: 80, endValue: 100, color: '#22c55e' });
             }
 
             gaugeWrap.dxCircularGauge({

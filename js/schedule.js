@@ -166,6 +166,31 @@ window.renderSchedule = async function renderSchedule(options = {}) {
         return;
     }
 
+    if (!editUserId && wardItems.length === 1 && String(wardItems[0].code || '') === 'TEMP_WARD') {
+        const tempWardId = wardItems[0]._id;
+        try {
+            const headRes = await fetch(`${apiBase}/api/schedules/head/${tempWardId}`, { headers: authHeaders });
+            if (!headRes.ok) {
+                await fetch(`${apiBase}/api/scheduler-heads`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...authHeaders
+                    },
+                    body: JSON.stringify({
+                        wardId: tempWardId,
+                        periodStart: new Date(),
+                        periodEnd: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0),
+                        status: 'OPEN',
+                        note: 'Auto open for TEMP_WARD'
+                    })
+                });
+            }
+        } catch {
+            // no-op
+        }
+    }
+
     wardSelectEl.dxSelectBox({
         items: wardItems,
         displayExpr: 'name',

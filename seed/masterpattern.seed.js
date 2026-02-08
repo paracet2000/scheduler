@@ -1,7 +1,7 @@
 /**
- * masterPattern.seed.js
+ * masterpattern.seed.js
  * ใช้สำหรับ seed master pattern data
- * run: node seed/masterPattern.seed.js
+ * run: node seed/masterpattern.seed.js
  */
 
 require('dotenv').config();
