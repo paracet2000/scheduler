@@ -1,6 +1,7 @@
 // js/index.js
 $(document).ready(function() {
     const BASE_URL = window.BASE_URL || '';
+    // const BASE_URL = window.BASE_URL || 'http://localhost:3000';
     window.BASE_URL = BASE_URL;
     const GRID_VISIBLE_ROWS = 25;
     const GRID_ROW_HEIGHT = 25;
