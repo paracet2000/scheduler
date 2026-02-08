@@ -173,8 +173,8 @@ window.renderSchedule = async function renderSchedule(options = {}) {
     //     if (typeof window.renderPersonalDashboard === 'function') {
     //         window.renderPersonalDashboard({ profile, wards: wardItems });
     //     } else {
-    //         if (typeof window.showPage === 'function') window.showPage('dashboard');
-    //         $('#dashboard').html('<div class="settings-placeholder">Personal dashboard</div>');
+    //         if (typeof window.showPage === 'function') window.showPage('personalDashboard');
+    //         $('#personalDashboard').html('<div class="settings-placeholder">Personal dashboard</div>');
     //     }
     //     return;
     // }

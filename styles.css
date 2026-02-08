@@ -207,7 +207,7 @@ body {
     background-repeat: no-repeat;
 }
 
-#dashboard.page {
+#personalDashboard.page {
     /* Subtle landing background before login or menu selection */
     background-image:
         linear-gradient(rgba(255, 255, 255, 0.9), rgba(155, 150, 202, 0.90)),url('./images/bg.png');

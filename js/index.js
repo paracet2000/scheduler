@@ -1,7 +1,6 @@
 // js/index.js
 $(document).ready(function() {
     const BASE_URL = window.BASE_URL || '';
-    // const BASE_URL = window.BASE_URL || 'http://localhost:3000';
     window.BASE_URL = BASE_URL;
     const GRID_VISIBLE_ROWS = 25;
     const GRID_ROW_HEIGHT = 25;
@@ -54,8 +53,8 @@ $(document).ready(function() {
     }
 
     window.renderPersonalDashboard = function renderPersonalDashboard(payload = {}) {
-        showPage('dashboard');
-        const dash = $('#dashboard');
+        showPage('personalDashboard');
+        const dash = $('#personalDashboard');
         const profile = payload.profile || {};
         const wards = Array.isArray(payload.wards) ? payload.wards : [];
         const roleText = Array.isArray(profile.roles) ? profile.roles.join(', ') : '';
@@ -147,7 +146,7 @@ $(document).ready(function() {
                 );
 
                 
-                showPage('dashboard');
+                showPage('personalDashboard');
             } catch (err) {
                 DevExpress.ui.notify(err.message, 'error', 3000);
             }
@@ -160,7 +159,7 @@ $(document).ready(function() {
         width: 100,
         onClick() {
             
-            showPage('dashboard');
+            showPage('personalDashboard');
         }
     });
 }
@@ -228,7 +227,7 @@ $(document).ready(function() {
                     if (typeof window.renderSchedule === 'function') {
                         window.renderSchedule();
                     } else {
-                        showPage('dashboard');
+                        showPage('personalDashboard');
                     }
                 } catch (err) {
                     DevExpress.ui.notify(err.message, 'error', 3000);
@@ -242,7 +241,7 @@ $(document).ready(function() {
             width: 100,
             onClick() {
                 
-                showPage('dashboard');
+                showPage('personalDashboard');
             }
         });
     }
@@ -337,7 +336,7 @@ $(document).ready(function() {
             localStorage.removeItem('auth_kpi_tools');
             updateUserAvatar(null);
             updateAuthUI(false);
-            showPage('dashboard');
+            showPage('personalDashboard');
             dropdownMenu.hide(); // Collapse the dropdown menu after click
         } }
     ];
