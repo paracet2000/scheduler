@@ -166,19 +166,6 @@ window.renderSchedule = async function renderSchedule(options = {}) {
         return;
     }
 
-    // NOTE: Temporarily disabled. This was redirecting most users back to the
-    // personal dashboard when they have non-TEMP wards, which blocks "My Schedule".
-    // const isTempOnly = wardItems.every(w => String(w.code || '') === 'TEMP_WARD');
-    // if (!editUserId && !isTempOnly) {
-    //     if (typeof window.renderPersonalDashboard === 'function') {
-    //         window.renderPersonalDashboard({ profile, wards: wardItems });
-    //     } else {
-    //         if (typeof window.showPage === 'function') window.showPage('personalDashboard');
-    //         $('#personalDashboard').html('<div class="settings-placeholder">Personal dashboard</div>');
-    //     }
-    //     return;
-    // }
-
     if (!editUserId && wardItems.length === 1 && String(wardItems[0].code || '') === 'TEMP_WARD') {
         const tempWardId = wardItems[0]._id;
         try {

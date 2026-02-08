@@ -130,7 +130,7 @@ window.renderPersonalSettings = async function renderPersonalSettings() {
     });
 
     const uploadHeaders = token ? { Authorization: `Bearer ${token}` } : {};
-    console.log('upload Header: ',uploadHeaders);
+    
     $('#avatarUploader').dxFileUploader({
         selectButtonText: 'Select Image',
         labelText: 'or drag & drop',
