@@ -1,6 +1,6 @@
 // js/index.js
 $(document).ready(function() {
-    const BASE_URL = window.BASE_URL || '';
+    const BASE_URL = window.BASE_URL || 'http://localhost:3000';
     window.BASE_URL = BASE_URL;
     const GRID_VISIBLE_ROWS = 25;
     const GRID_ROW_HEIGHT = 25;
@@ -44,13 +44,46 @@ $(document).ready(function() {
     // Add a dropdown button to the top menu
     const dropdown = $('<div>', { class: 'dropdown' });
     const button = $('<button>', { class: 'user-menu-button dropdown-toggle', 'aria-label': 'User menu' })
-        .append($('<span>', { class: 'user-avatar', text: 'U' }));
+        .append($('<span>', { class: 'user-avatar'}));
     const dropdownMenu = $('<div>', { class: 'dropdown-menu' });
 
     function showPage(pageId) {
         $('.page').addClass('pagehidden');
         $(`#${pageId}`).removeClass('pagehidden');
     }
+
+    window.renderPersonalDashboard = function renderPersonalDashboard(payload = {}) {
+        showPage('dashboard');
+        const dash = $('#dashboard');
+        const profile = payload.profile || {};
+        const wards = Array.isArray(payload.wards) ? payload.wards : [];
+        const roleText = Array.isArray(profile.roles) ? profile.roles.join(', ') : '';
+        const wardText = wards.length ? wards.map(w => w.name || w.code).join(', ') : 'No wards';
+
+        dash.empty();
+        const header = $('<div class="dashboard-hero"></div>');
+        header.append($('<div class="dashboard-title"></div>').text('Personal Dashboard'));
+        header.append($('<div class="dashboard-subtitle"></div>').text('Quick snapshot for your account'));
+
+        const cards = $('<div class="dashboard-cards"></div>');
+        cards.append(
+            $('<div class="dashboard-card"></div>')
+                .append('<div class="dashboard-card-label">Name</div>')
+                .append(`<div class="dashboard-card-value">${profile.name || profile.email || 'User'}</div>`)
+        );
+        cards.append(
+            $('<div class="dashboard-card"></div>')
+                .append('<div class="dashboard-card-label">Roles</div>')
+                .append(`<div class="dashboard-card-value">${roleText || '-'}</div>`)
+        );
+        cards.append(
+            $('<div class="dashboard-card"></div>')
+                .append('<div class="dashboard-card-label">Wards</div>')
+                .append(`<div class="dashboard-card-value">${wardText}</div>`)
+        );
+
+        dash.append(header, cards);
+    };
 
     function renderRegister() {
 
@@ -405,6 +438,7 @@ $(document).ready(function() {
 
     function updateUserAvatar(avatarUrl) {
         const avatar = button.find('.user-avatar');
+        console.log('avatarUrl Data: ',avatarUrl);
         if (avatarUrl) {
             avatar
                 .css('background-image', `url(${resolveAvatarUrl(avatarUrl)})`)
@@ -415,19 +449,12 @@ $(document).ready(function() {
 
         
         if (!avatarUrl) {
-            avatar.text('U');
-            avatar.removeClass('user-avatar--active has-image');
-            avatar.css('background-image', '');
+        avatar
+            .css('background-image', '')
+            .removeClass('has-image user-avatar--active');
             return;
         }
 
-        // const name = user.name || user.email || 'User';
-        // const initial = name.trim().charAt(0).toUpperCase();
-        // avatar.text(initial);
-        // avatar.addClass('user-avatar--active');
-        // avatar.removeClass('has-image');
-        // avatar.css('background-image', '');
-        
     }
 
     // Initial auth state from localStorage

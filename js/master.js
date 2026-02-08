@@ -1261,7 +1261,7 @@ window.renderSystemSettings = async function renderSystemSettings() {
                             horizontalAlignment: 'left',
                             buttonOptions: {
                                 text: 'Download Log',
-                                type: 'normal',
+                                type: 'default',
                                 onClick: downloadLog
                             }
                         }

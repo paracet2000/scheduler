@@ -52,7 +52,9 @@ window.renderPersonalSettings = async function renderPersonalSettings() {
 
     const profileFormWrap = $('<div>', { class: 'profile-section' });
     const profileFormEl = $('<div>', { id: 'profileForm' });
+    const profileSaveEl = $('<div>', { id: 'profileSaveBtn' });
     profileFormWrap.append($('<div>', { class: 'profile-section-title', text: 'Basic Info' }), profileFormEl);
+    profileFormWrap.append(profileSaveEl);
 
     const avatarWrap = $('<div>', { class: 'profile-section' });
     const uploaderEl = $('<div>', { id: 'avatarUploader' });
@@ -86,6 +88,33 @@ window.renderPersonalSettings = async function renderPersonalSettings() {
             },
             { dataField: 'phone', label: { text: 'Phone' } }
         ]
+    });
+
+    $('#profileSaveBtn').dxButton({
+        text: 'Save',
+        type: 'success',
+        onClick: async () => {
+            const form = $('#profileForm').dxForm('instance');
+            const validation = form.validate();
+            if (!validation.isValid) return;
+            const data = form.option('formData') || {};
+            const res = await fetch(`${apiBase}/api/users/me`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...uploadHeaders
+                },
+                body: JSON.stringify({ name: data.name, phone: data.phone })
+            });
+            const json = await res.json();
+            if (!res.ok) {
+                DevExpress.ui.notify(json.message || 'Save failed', 'error', 3000);
+                return;
+            }
+            DevExpress.ui.notify('Profile updated', 'success', 2000);
+            const updated = json.data || {};
+            info.find('.profile-name').text(updated.name || profile?.name || 'User');
+        }
     });
 
     const uploadHeaders = token ? { Authorization: `Bearer ${token}` } : {};
@@ -174,6 +203,7 @@ window.renderPersonalSettings = async function renderPersonalSettings() {
                 location: 'after',
                 options: {
                     text: 'Cancel',
+                    type: 'warning',
                     onClick() {
                         confirmPopup.hide();
                     }
