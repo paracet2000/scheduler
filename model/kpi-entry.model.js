@@ -5,8 +5,7 @@ const kpiEntrySchema = new mongoose.Schema(
     wardId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Master',
-      required: true,
-      index: true
+      required: true
     },
     shiftCode: {
       type: String,
@@ -16,8 +15,7 @@ const kpiEntrySchema = new mongoose.Schema(
     },
     date: {
       type: Date,
-      required: true,
-      index: true
+      required: true
     },
     values: {
       type: mongoose.Schema.Types.Mixed,

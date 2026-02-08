@@ -10,7 +10,6 @@ const schedulerHeadSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: 'Master',
       required: true,
-      index: true,
     },
 
     // ช่วงวันที่อนุญาตให้สร้าง / แก้ไขเวร

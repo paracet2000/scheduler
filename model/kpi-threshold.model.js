@@ -6,8 +6,7 @@ const kpiThresholdSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      uppercase: true,
-      index: true
+      uppercase: true
     },
     greenMin: { type: Number, default: null },
     greenMax: { type: Number, default: null },
