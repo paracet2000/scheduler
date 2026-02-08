@@ -19,6 +19,13 @@ app.use(cors({
   ],
   credentials: true
 }));
+app.use((req, res, next) => {
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https:; script-src 'self' 'unsafe-inline' https:; font-src 'self' data: https:; connect-src 'self' https:;"
+  );
+  next();
+});
 app.use(express.json());
 app.use(requestLogger);
 app.use('/uploads', express.static(path.resolve('uploads')));
