@@ -431,9 +431,28 @@ $(document).ready(function() {
 
     function resolveAvatarUrl(avatarUrl) {
         if (!avatarUrl) return '';
-        if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) return avatarUrl;
+        if (
+            avatarUrl.startsWith('http://') ||
+            avatarUrl.startsWith('https://') ||
+            avatarUrl.startsWith('data:') ||
+            avatarUrl.startsWith('blob:')
+        ) {
+            return avatarUrl;
+        }
         const apiBase = window.BASE_URL || '';
         return `${apiBase}${avatarUrl}`;
+    }
+
+    function setFavicon(avatarUrl) {
+        const link = document.getElementById('appFavicon') || (() => {
+            const l = document.createElement('link');
+            l.id = 'appFavicon';
+            l.rel = 'icon';
+            document.head.appendChild(l);
+            return l;
+        })();
+        const fallback = 'images/defaultprofile.jpg';
+        link.href = resolveAvatarUrl(avatarUrl) || fallback;
     }
 
     function updateUserAvatar(avatarUrl) {
@@ -444,6 +463,7 @@ $(document).ready(function() {
                 .css('background-image', `url(${resolveAvatarUrl(avatarUrl)})`)
                 .addClass('has-image user-avatar--active')
                 .text('');
+            setFavicon(avatarUrl);
             return;
         }
 
@@ -452,6 +472,7 @@ $(document).ready(function() {
         avatar
             .css('background-image', '')
             .removeClass('has-image user-avatar--active');
+            setFavicon('');
             return;
         }
 
