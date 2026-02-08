@@ -1,12 +1,6 @@
 // js/index.js
 $(document).ready(function() {
-    const env =
-        window.NODE_ENV ||
-        (window.ENV && window.ENV.NODE_ENV) ||
-        '';
-    const BASE_URL =
-        window.BASE_URL ||
-        (env === 'production' ? '' : 'http://localhost:3000');
+    const BASE_URL = window.BASE_URL || '';
     window.BASE_URL = BASE_URL;
     const GRID_VISIBLE_ROWS = 25;
     const GRID_ROW_HEIGHT = 25;
