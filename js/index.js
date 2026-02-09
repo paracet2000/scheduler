@@ -1,7 +1,7 @@
 // js/index.js
 $(document).ready(function() {
-    // const BASE_URL = window.BASE_URL || '';
-    const BASE_URL = window.BASE_URL || 'http://localhost:3000';
+    // const BASE_URL = window.BASE_URL || 'http://localhost:3000';
+    const BASE_URL = window.BASE_URL || ''
     window.BASE_URL = BASE_URL;
     const GRID_VISIBLE_ROWS = 25;
     const GRID_ROW_HEIGHT = 25;
@@ -42,6 +42,25 @@ $(document).ready(function() {
             }
         });
     }
+
+    // Force DevExtreme eval banner to a small height (inline !important overrides CSS).
+    function shrinkDxLicense() {
+        const el = document.querySelector('dx-license');
+        if (!el) return;
+        el.style.setProperty('height', '6px', 'important');
+        el.style.setProperty('line-height', '6px', 'important');
+        el.style.setProperty('padding', '0 6px', 'important');
+        el.style.setProperty('font-size', '6px', 'important');
+        el.style.setProperty('max-height', '6px', 'important');
+        el.style.setProperty('overflow', 'hidden', 'important');
+        el.style.setProperty('position', 'fixed', 'important');
+        el.style.setProperty('left', '0', 'important');
+        el.style.setProperty('right', '0', 'important');
+        el.style.setProperty('bottom', '0', 'important');
+        el.style.setProperty('z-index', '10', 'important');
+    }
+    shrinkDxLicense();
+    new MutationObserver(shrinkDxLicense).observe(document.body, { childList: true, subtree: true });
     // Add a dropdown button to the top menu
     const dropdown = $('<div>', { class: 'dropdown' });
     const button = $('<button>', { class: 'user-menu-button dropdown-toggle', 'aria-label': 'User menu' })
@@ -511,3 +530,4 @@ $(document).ready(function() {
     window.resolveAvatarUrl = resolveAvatarUrl;
 
 });
+

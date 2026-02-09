@@ -42,6 +42,22 @@ body {
   color: #0f172a;
 }
 
+/* DevExtreme evaluation banner (fallback styling; inline !important may override) */
+dx-license {
+  height: 2px !important;
+  line-height: 6px !important;
+  padding: 0px 6px !important;
+  font-size: 6px !important;
+  max-height: 6px !important;
+  overflow: hidden !important;
+}
+
+dx-license {
+  height: 7px;
+  line-height: 7x;
+  font-size: 7x;
+  overflow: hidden;
+}
 /* =====================
    Buttons (DevExtreme)
    NOTE: Global button styles for the entire app are controlled here.
