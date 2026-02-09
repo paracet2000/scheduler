@@ -486,11 +486,11 @@ $(document).ready(function() {
         const avatar = button.find('.user-avatar');
         const cleaned = typeof avatarUrl === 'string' ? avatarUrl.trim() : avatarUrl;
         console.log('avatarUrl Data:(', cleaned,')');
+        console.log('{resolveAvatarUrl(cleaned)} Data:(',resolveAvatarUrl(cleaned),')');
         if (cleaned) {
             avatar
                 .css('background-image', `url(${resolveAvatarUrl(cleaned)})`)
-                .addClass('has-image user-avatar--active')
-                .text('');
+                .addClass('has-image user-avatar--active');
             setFavicon(cleaned);
             return;
         }
@@ -501,7 +501,8 @@ $(document).ready(function() {
             .css('background-image', '')
             .removeClass('has-image user-avatar--active');
             setFavicon('');
-            return;
+            console.log('Not clean!!!!');
+     urn;
         }
 
     }
