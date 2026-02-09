@@ -1,7 +1,8 @@
 // js/index.js
 $(document).ready(function() {
-    // const BASE_URL = window.BASE_URL || 'http://localhost:3000';
-    const BASE_URL = window.BASE_URL || '';
+    const rawBaseUrl = typeof window.BASE_URL === 'string' ? window.BASE_URL.trim() : '';
+    const isLocalHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+    const BASE_URL = rawBaseUrl || (isLocalHost ? 'http://localhost:3000' : '');
     window.BASE_URL = BASE_URL;
     const GRID_VISIBLE_ROWS = 25;
     const GRID_ROW_HEIGHT = 25;
@@ -530,5 +531,4 @@ $(document).ready(function() {
     window.resolveAvatarUrl = resolveAvatarUrl;
 
 });
-
 

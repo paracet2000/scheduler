@@ -50,3 +50,19 @@ meta: {
   "Can-use-kpi-tools": true
 }
 ```
+
+## Deploy (push:prod)
+สคริปต์ `push:prod` ใช้สำหรับ commit/push โดยสลับ `BASE_URL` เป็นค่า production ชั่วคราวก่อน push แล้วจะสลับกลับเป็นค่า dev ให้เอง
+
+**เรียกใช้งาน**
+```bash
+npm run push:prod
+```
+
+**ใส่ข้อความ commit เอง**
+```bash
+npm run push:prod -- "your commit message"
+```
+
+**หมายเหตุ**
+- ถ้าไม่ใส่ข้อความ commit จะใช้ค่าเริ่มต้น: `Prepare production BASE_URL`

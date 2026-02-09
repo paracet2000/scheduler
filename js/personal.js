@@ -50,6 +50,9 @@ window.renderPersonalSettings = async function renderPersonalSettings() {
         const initial = (profile?.name || profile?.email || 'U').trim().charAt(0).toUpperCase();
         avatar.text(initial);
     }
+    if (typeof window.updateUserAvatar === 'function') {
+        window.updateUserAvatar(profile?.avatar || null);
+    }
 
     const info = $('<div>', { class: 'profile-info' })
         .append($('<div>', { class: 'profile-name', text: profile?.name || 'User' }))
