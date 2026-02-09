@@ -229,7 +229,7 @@ $(document).ready(function() {
                     const roles = json?.data?.roles;
                     const avatar = json?.data?.avatar;
                     const canUseKpiTools = !!(json?.data?.meta?.['Can-use-kpi-tools'] || json?.data?.meta?.canUseKpiTools);
-                    console.log('avatar logon Data: ',avatar);
+                    console.log('avatar logon Data:(',avatar,')');
                     if (token) {
                         localStorage.setItem('auth_token', token);
                     }
@@ -485,7 +485,7 @@ $(document).ready(function() {
     function updateUserAvatar(avatarUrl) {
         const avatar = button.find('.user-avatar');
         const cleaned = typeof avatarUrl === 'string' ? avatarUrl.trim() : avatarUrl;
-        console.log('avatarUrl Data: ', cleaned);
+        console.log('avatarUrl Data:(', cleaned,')');
         if (cleaned) {
             avatar
                 .css('background-image', `url(${resolveAvatarUrl(cleaned)})`)
