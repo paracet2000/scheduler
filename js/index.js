@@ -502,7 +502,7 @@ $(document).ready(function() {
             .removeClass('has-image user-avatar--active');
             setFavicon('');
             console.log('Not clean!!!!');
-     urn;
+            return;
         }
 
     }
