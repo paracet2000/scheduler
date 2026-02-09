@@ -237,12 +237,8 @@ $(document).ready(function() {
                         localStorage.setItem('auth_roles', JSON.stringify(roles));
                     }
                     localStorage.setItem('auth_kpi_tools', JSON.stringify(canUseKpiTools));
-                    if (avatar) {
-                        updateUserAvatar(avatar);
-                    } else {
-                        updateUserAvatar(null);
-                    }
                     updateAuthUI(true);
+                    syncCurrentUser(token);
 
                     DevExpress.ui.notify('Login success!', 'success', 3000);
                     if (typeof window.renderSchedule === 'function') {
@@ -488,18 +484,19 @@ $(document).ready(function() {
 
     function updateUserAvatar(avatarUrl) {
         const avatar = button.find('.user-avatar');
-        console.log('avatarUrl Data: ',avatarUrl);
-        if (avatarUrl) {
+        const cleaned = typeof avatarUrl === 'string' ? avatarUrl.trim() : avatarUrl;
+        console.log('avatarUrl Data: ', cleaned);
+        if (cleaned) {
             avatar
-                .css('background-image', `url(${resolveAvatarUrl(avatarUrl)})`)
+                .css('background-image', `url(${resolveAvatarUrl(cleaned)})`)
                 .addClass('has-image user-avatar--active')
                 .text('');
-            setFavicon(avatarUrl);
+            setFavicon(cleaned);
             return;
         }
 
         
-        if (!avatarUrl) {
+        if (!cleaned) {
         avatar
             .css('background-image', '')
             .removeClass('has-image user-avatar--active');
@@ -509,25 +506,32 @@ $(document).ready(function() {
 
     }
 
-    // Initial auth state from localStorage
-    const initialToken = localStorage.getItem('auth_token');
-    updateAuthUI(!!initialToken);
-
-    if (initialToken) {
+    function syncCurrentUser(token) {
+        if (!token) return;
         const apiBase = window.BASE_URL || '';
         fetch(`${apiBase}/api/users/me`, {
-            headers: { Authorization: `Bearer ${initialToken}` }
+            headers: { Authorization: `Bearer ${token}` }
         })
             .then((res) => res.json())
             .then((json) => {
                 if (json?.data?.avatar) {
                     updateUserAvatar(json.data.avatar);
+                } else {
+                    updateUserAvatar(null);
                 }
                 const canUseKpiTools = !!(json?.data?.meta?.['Can-use-kpi-tools'] || json?.data?.meta?.canUseKpiTools);
                 localStorage.setItem('auth_kpi_tools', JSON.stringify(canUseKpiTools));
                 updateAuthUI(true);
             })
             .catch(() => {});
+    }
+
+    // Initial auth state from localStorage
+    const initialToken = localStorage.getItem('auth_token');
+    updateAuthUI(!!initialToken);
+
+    if (initialToken) {
+        syncCurrentUser(initialToken);
         if (typeof window.renderSchedule === 'function') {
             window.renderSchedule();
         }
