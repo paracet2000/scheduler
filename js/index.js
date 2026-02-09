@@ -450,6 +450,15 @@ $(document).ready(function() {
         }
     }
 
+    function normalizeAvatarPath(avatarUrl) {
+        const raw = String(avatarUrl || '').trim();
+        if (!raw) return '';
+        if (raw.startsWith('/')) return raw;
+        if (raw.startsWith('uploads/')) return `/${raw}`;
+        if (!raw.includes('/')) return `/uploads/${raw}`;
+        return `/${raw}`;
+    }
+
     function resolveAvatarUrl(avatarUrl) {
         if (!avatarUrl) return '';
         if (
@@ -460,8 +469,9 @@ $(document).ready(function() {
         ) {
             return avatarUrl;
         }
-        const apiBase = window.BASE_URL || '';
-        return `${apiBase}${avatarUrl}`;
+        const apiBase = (window.BASE_URL || '').replace(/\/+$/, '');
+        const path = normalizeAvatarPath(avatarUrl);
+        return apiBase ? `${apiBase}${path}` : path;
     }
 
     function setFavicon(avatarUrl) {
@@ -531,4 +541,3 @@ $(document).ready(function() {
     window.resolveAvatarUrl = resolveAvatarUrl;
 
 });
-
