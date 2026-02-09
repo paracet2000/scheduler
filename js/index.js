@@ -54,10 +54,10 @@ $(document).ready(function() {
         el.style.setProperty('max-height', '6px', 'important');
         el.style.setProperty('overflow', 'hidden', 'important');
         el.style.setProperty('position', 'fixed', 'important');
-        el.style.setProperty('left', '0', 'important');
-        el.style.setProperty('right', '0', 'important');
-        el.style.setProperty('bottom', '0', 'important');
-        el.style.setProperty('z-index', '10', 'important');
+        // el.style.setProperty('left', '0', 'important');
+        // el.style.setProperty('right', '0', 'important');
+        // el.style.setProperty('bottom', '0', 'important');
+        // el.style.setProperty('z-index', '10', 'important');
     }
     shrinkDxLicense();
     new MutationObserver(shrinkDxLicense).observe(document.body, { childList: true, subtree: true });
