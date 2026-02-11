@@ -5,15 +5,16 @@ $(document).ready(function() {
         $(`#${pageId}`).removeClass('pagehidden');
     }
 
-    // state: 0 = icon only, 1 = text only, 2 = both
+    // state: 0 = icon only, 1 = text only, 2 = icon + text, 3 = toggle button only
     let currentStateIndex = 2;
 
     function applyDrawerState(state) {
         const drawer = $('#drawer');
-        drawer.removeClass('drawer--icon drawer--icon-text drawer--text');
+        drawer.removeClass('drawer--icon drawer--icon-text drawer--text drawer--toggle-only');
         if (state === 0) drawer.addClass('drawer--icon');
         if (state === 1) drawer.addClass('drawer--text');
         if (state === 2) drawer.addClass('drawer--icon-text');
+        if (state === 3) drawer.addClass('drawer--toggle-only');
     }
 
     async function buildDrawerMenu(state) {
@@ -109,7 +110,7 @@ $(document).ready(function() {
     };
 
     $('#drawerToggle').on('click', async () => {
-        currentStateIndex = (currentStateIndex + 1) % 3;
+        currentStateIndex = (currentStateIndex + 1) % 4;
         await buildDrawerMenu(currentStateIndex);
     });
 
@@ -117,7 +118,7 @@ $(document).ready(function() {
     window.setDrawerState = async function setDrawerState(state) {
         const next = Number(state);
         if (Number.isNaN(next)) return;
-        currentStateIndex = Math.max(0, Math.min(2, next));
+        currentStateIndex = Math.max(0, Math.min(3, next));
         await buildDrawerMenu(currentStateIndex);
     };
 
