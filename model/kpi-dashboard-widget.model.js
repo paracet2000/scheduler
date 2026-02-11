@@ -36,10 +36,36 @@ const kpiDashboardWidgetSchema = new mongoose.Schema(
       type: [String],
       default: []
     },
+    numeratorMode: {
+      type: String,
+      enum: ['sum', 'count', 'absolute'],
+      default: 'sum'
+    },
+    denominatorMode: {
+      type: String,
+      enum: ['sum', 'count', 'absolute'],
+      default: 'sum'
+    },
+    numeratorValue: {
+      type: Number,
+      default: null
+    },
+    denominatorValue: {
+      type: Number,
+      default: null
+    },
     unit: {
       type: String,
       trim: true,
       default: ''
+    },
+    curveWidth: {
+      type: Number,
+      default: 30
+    },
+    gradient: {
+      type: Boolean,
+      default: false
     },
     roles: {
       type: [String],

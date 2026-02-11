@@ -10,7 +10,7 @@ const AppError = require('../helpers/apperror')
  */
 module.exports = (...roles) => {
   // รองรับ authorizeWard('HEAD') หรือ authorizeWard(['HEAD','HR'])
-  const allowRoles = roles.flat()
+  // role check removed; only ward membership is required
 
   return async (req, res, next) => {
     const userId = req.user.id
@@ -23,8 +23,7 @@ module.exports = (...roles) => {
     const userWard = await WardMember.findOne({
       userId,
       wardId,
-      status: 'ACTIVE',
-      roles: { $in: allowRoles }
+      status: 'ACTIVE'
     })
 
     if (!userWard) {

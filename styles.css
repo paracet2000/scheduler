@@ -7,6 +7,8 @@
   --primary: #2563eb;
   --primary-600: #1d4ed8;
   --primary-700: #1e40af;
+  --grid-header-bg: #3b82f6;
+  --grid-header-text: #ffffff;
   --success: #16a34a;
   --success-700: #15803d;
   --warning: #f59e0b;
@@ -25,6 +27,12 @@
   --main-padding: 0px;
   --page-padding: 20px;
   --register-padding: 20px;
+  --drawer-width: 220px;
+  --drawer-width-collapsed: 64px;
+  --drawer-bg: #eef4ff;
+  --drawer-ink: #1e3a8a;
+  --drawer-muted: #64748b;
+  --button-min:110px;
 }
 
 /* =====================
@@ -61,17 +69,21 @@ dx-license {
 /* =====================
    Buttons (DevExtreme)
    NOTE: Global button styles for the entire app are controlled here.
+   Impact: affects all dxButton instances across the app (forms, grids, toolbars).
 ===================== */
 .dx-button {
-  border-radius: 5px;
+  /* Base button sizing/shape used everywhere */
+  /* border-radius: 5px; */
   min-height: 26px;
-  min-width: 110px;
+  min-width: calc(--button-min);
   padding: 8px 14px;
   font-weight: 600; 
   height: 32px; 
+  margin-top: 10px;
 }
 
 .dx-button-mode-contained.dx-button-default {
+  /* Primary action buttons */
   background: var(--primary);
   border-color: var(--primary);
   color: #fff;
@@ -86,6 +98,7 @@ dx-license {
 }
 
 .dx-button-mode-contained.dx-button-success {
+  /* Success/confirm actions */
   background: var(--success);
   border-color: var(--success);
   color: #fff;
@@ -96,6 +109,7 @@ dx-license {
 }
 
 .dx-button-mode-contained.dx-button-danger {
+  /* Destructive actions */
   background: var(--danger);
   border-color: var(--danger);
   color: #fff;
@@ -106,6 +120,7 @@ dx-license {
 }
 
 .dx-button-mode-contained.dx-button-normal {
+  /* Neutral/secondary actions */
   background: #e5e7eb;
   border-color: #e5e7eb;
   color: #0f172a;
@@ -116,6 +131,7 @@ dx-license {
 }
 
 .dx-button-mode-outlined {
+  /* Outlined buttons (less emphasis) */
   border-radius: 10px;
   border-color: var(--border);
 }
@@ -132,6 +148,124 @@ dx-license {
 .layout {
   display: flex;
   min-height: calc(100vh - var(--header-height));
+}
+
+/* Drawer */
+.drawer {
+    width: var(--drawer-width);
+    background: linear-gradient(180deg, #f4f8ff 0%, #e7f0ff 100%);
+    color: var(--drawer-ink);
+    border-right: 1px solid rgba(99, 102, 241, 0.18);
+    padding: 12px 10px;
+    position: sticky;
+    top: var(--header-height);
+    align-self: flex-start;
+    height: calc(100vh - var(--header-height));
+}
+.drawer.drawer--icon {
+    width: var(--drawer-width-collapsed);
+}
+.drawer.drawer--text {
+    width: 180px;
+}
+.drawer.drawer--icon-text {
+    width: var(--drawer-width);
+}
+.drawer.collapsed {
+    width: var(--drawer-width-collapsed);
+}
+.drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+.drawer-title {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--drawer-ink);
+}
+.drawer-toggle {
+    background: transparent;
+    border: 1px solid rgba(99, 102, 241, 0.35);
+    color: var(--drawer-ink);
+    border-radius: 8px;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+}
+.drawer-menu {
+    display: grid;
+    gap: 6px;
+}
+.drawer-item {
+    display: grid;
+    grid-template-columns: 28px 1fr;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    color: var(--drawer-ink);
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(148, 163, 184, 0.35);
+}
+.drawer-item.drawer-item--disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    filter: grayscale(0.4);
+}
+.drawer-item-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: #0f172a;
+    background: linear-gradient(135deg, #38bdf8, #fbbf24);
+    font-size: 14px;
+}
+.drawer-item-label {
+    font-size: 13px;
+    color: var(--drawer-ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.drawer.collapsed .drawer-item {
+    grid-template-columns: 1fr;
+    justify-items: center;
+}
+.drawer.collapsed .drawer-item-label {
+    display: none;
+}
+
+.drawer.drawer--icon .drawer-item-label {
+    display: none;
+}
+.drawer.drawer--icon .drawer-item {
+    grid-template-columns: 1fr;
+    justify-items: center;
+}
+.drawer.drawer--text .drawer-item {
+    grid-template-columns: 1fr;
+}
+.drawer.drawer--text .drawer-item-icon {
+    display: none;
+}
+
+@media (max-width: 900px) {
+    .drawer {
+        position: fixed;
+        left: 0;
+        top: var(--header-height);
+        z-index: 10;
+        transform: translateX(0);
+    }
+    .layout {
+        padding-left: 0;
+    }
 }
 
 /* ---------- Main Content ---------- */
@@ -231,10 +365,32 @@ dx-license {
     background-position: center;
     background-repeat: no-repeat;
 }
+.avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+}
+#registerForm {
+    margin-bottom: 12px;
+}
 
+/* Allow register page to size to content */
+#register.page {
+    min-height: auto;
+}
+/* Allow login page to size to content */
+#login.page {
+    min-height: auto;
+}
+#register .form-actions-left {
+    margin-top: 12px;
+}
 /* Login form spacing */
 #login .form-actions-left {
-    margin-top: 16px;
+    padding: 20px 20px;
+    
 }
 #login #loginForm {
     max-width: 480px;
@@ -304,6 +460,13 @@ dx-license {
 
 .app-shell .dx-tabpanel {
   background: transparent;
+}
+
+/* Global dxDataGrid header colors */
+.dx-datagrid .dx-header-row,
+.dx-datagrid .dx-header-row > td {
+    background-color: var(--grid-header-bg);
+    color: var(--grid-header-text);
 }
 
 /* =====================
@@ -524,7 +687,7 @@ dx-license {
 }
 
 .pagehidden {
-    display: none;
+    display: none !important;
 }
 
 .user-menu-button {
@@ -612,15 +775,17 @@ dx-license {
 
 .system-settings {
     display: grid;
-    grid-template-columns: 180px 1fr;
-    gap: 16px;
-    margin-top: 16px;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.system-settings #drpSystemItem {
+    max-width: 320px;
 }
 
 .system-settings-menu {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+    display: none;
 }
 
 .system-settings-item {
@@ -684,19 +849,6 @@ dx-license {
     transition: background-color 220ms ease, color 220ms ease;
 }
 
-/* System Settings header (match User Management) */
-.system-settings-content .dx-datagrid .dx-header-row,
-.system-settings-content .dx-datagrid .dx-header-row > td {
-    background-color: #4b86d4;
-    color: #fefeff;
-}
-
-/* User Management header */
-#userManagement .dx-datagrid .dx-header-row,
-#userManagement .dx-datagrid .dx-header-row > td {
-    background-color: #4b86d4;
-    color: #fefeff;
-}
 
 .reset-pass-btn {
     padding: 6px 8px;
@@ -835,6 +987,12 @@ dx-license {
     margin-top: 12px;
 }
 
+
+
+ 
+
+
+
 .change-list-wrap {
     position: relative;
     display: inline-flex;
@@ -904,6 +1062,15 @@ dx-license {
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
+#login {
+    max-width: 520px;
+    margin: 50px auto;
+    padding: var(--register-padding);
+    background-color: white;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
 #userManagement .dx-datagrid {
     width: 100%;
 }
@@ -918,19 +1085,34 @@ dx-license {
    max-width: 90%;
 }
 
+/* KPI Entry layout */
+#kpiEntry .kpi-entry-header,
+#kpiEntry .kpi-entry-data {
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+}
+
+#kpiEntry .kpi-entry-header {
+    margin-bottom: 12px;
+}
+
 #kpiDashboard.page {
     --kpi-bg: #ebdfc2;
     --kpi-ink: #13141a;
-    --kpi-muted: #6b7280;
+    --kpi-muted: #677185;
     --kpi-gold: #b08d57;
     --kpi-ivory: #fcfaf5;
     --kpi-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
     max-width: 90%;
-    background: radial-gradient(circle at 20% 0%, #ffffff 0%, #f4f1ea 48%, #ece8df 100%);
-    border-radius: 18px;
-    padding: 22px;
+    /* Match KPI Tools clean, light gradient + softer curves */
+    background: linear-gradient(180deg, #ffffff 0%, #f3f6fb 100%);
+    border-radius: 24px;
+    padding: 24px;
     color: var(--kpi-ink);
-    border: 1px solid rgba(176, 141, 87, 0.25);
+    border: 1px solid #e2e8f0;
     box-shadow: var(--kpi-shadow);
     font-family: 'Manrope', sans-serif;
 }
@@ -964,9 +1146,9 @@ dx-license {
     gap: 12px;
     align-items: center;
     margin-bottom: 16px;
-    background: rgba(126, 111, 239, 0.636);
+    background: #ffffff;
     border: 1px solid rgba(176, 141, 87, 0.25);
-    border-radius: 14px;
+    border-radius: 16px;
     padding: 12px;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
@@ -1044,7 +1226,7 @@ dx-license {
 
 .kpi-card {
     border: 1px solid rgb(5, 5, 5);
-    border-radius: 18px;
+    border-radius: 20px;
     padding: 14px 16px;
     background: linear-gradient(180deg, #fffdf7 0%, #986500 100%);
     box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
@@ -1054,6 +1236,14 @@ dx-license {
     overflow: hidden;
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: default;
+}
+
+.kpi-card-heart {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    font-size: 18px;
+    line-height: 1;
 }
 .kpi-card:hover {
     transform: translateY(-8px);
@@ -1199,6 +1389,60 @@ dx-license {
     margin-top: 12px;
 }
 
+/* Global grid toolbar alignment
+   Impact: affects the header toolbar area of every dxDataGrid. */
+.dx-datagrid-header-panel {
+    padding: 10px 12px;
+}
+
+/* Center toolbar items vertically to avoid low/offset buttons */
+.dx-datagrid-header-panel .dx-toolbar,
+.dx-datagrid-header-panel .dx-toolbar .dx-toolbar-items-container {
+    align-items: center;
+}
+
+.dx-datagrid-header-panel .dx-toolbar .dx-toolbar-item-content {
+    margin-top: 0;
+}
+
+/* Global grid toolbar button colors
+   Impact: only toolbar buttons inside dxDataGrid header panels. */
+.dx-datagrid .dx-toolbar .dx-toolbar-item .dx-button.dx-button-mode-contained.dx-button-default {
+    /* Add new row button -> success (green) */
+    background: var(--success);
+    border-color: var(--success);
+    color: #fff;
+}
+
+.dx-datagrid .dx-toolbar .dx-toolbar-item .dx-button.dx-button-mode-contained.dx-button-default:hover {
+    background: var(--success-700);
+    border-color: var(--success-700);
+}
+
+.dx-datagrid .dx-toolbar .dx-toolbar-item .dx-button.dx-button-mode-contained.dx-button-success {
+    /* Used for Download/positive actions in grid toolbars */
+    background: var(--success);
+    border-color: var(--success);
+    color: #fff;
+}
+
+.dx-datagrid .dx-toolbar .dx-toolbar-item .dx-button.dx-button-mode-contained.dx-button-success:hover {
+    background: var(--success-700);
+    border-color: var(--success-700);
+}
+
+.dx-datagrid .dx-toolbar .dx-toolbar-item .dx-button.dx-button-mode-contained.dx-button-normal {
+    /* Used for neutral actions in grid toolbars (e.g., Export) */
+    background: #ebdfc2;
+    border-color: rgb(219, 217, 217);
+    color: #fff;
+}
+
+.dx-datagrid .dx-toolbar .dx-toolbar-item .dx-button.dx-button-mode-contained.dx-button-normal:hover {
+    background: #ebdfc2;
+    border-color: gray;
+}
+
 .kpi-tools-gauge {
     margin-top: 16px;
     padding: 12px;
@@ -1276,6 +1520,19 @@ dx-license {
     font-weight: 800;
     margin-top: 6px;
     color: #0f766e;
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+}
+
+@keyframes kpiValueBlink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+}
+
+.kpi-card-value.kpi-value-alert {
+    animation: kpiValueBlink 1s ease-in-out infinite;
 }
 
 .kpi-gauge {
@@ -1377,7 +1634,7 @@ dx-license {
         border-color: #334155;
     }
     .kpi-dashboard-range {
-        color: #60a5fa;
+        color: #1c6fd5;
     }
     .kpi-dashboard-filters {
         background: rgba(30, 41, 59, 0.7);
@@ -1460,6 +1717,156 @@ dx-license {
     border: 1px solid var(--border);
     border-radius: 12px;
     background: #ffffff;
+}
+
+
+.attendance-upload {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.attendance-label {
+    font-weight: 600;
+    min-width: 80px;
+}
+
+.attendance-upload input[type='file'] {
+    display: none;
+}
+
+.attendance-upload-btn {
+    border: 1px solid var(--border);
+    background: #f1f5f9;
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.attendance-drop {
+    padding: 8px 12px;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    color: #64748b;
+}
+
+.attendance-drop.is-drag {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: #eff6ff;
+}
+
+.attendance-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 12px 0;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 12px;
+}
+
+/* Config management */
+#config.page {
+    max-width: 90%;
+}
+
+.config-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+#config .dx-datagrid {
+    border-radius: 12px;
+    overflow: hidden;
+    background: #ffffff;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+}
+
+
+#config .dx-datagrid-rowsview .dx-row {
+    background: #ffffff;
+    transition: background-color 180ms ease;
+}
+
+#config .dx-datagrid-rowsview .dx-row:hover {
+    background: #f1f5ff;
+}
+
+#config .dx-datagrid .dx-datagrid-headers,
+#config .dx-datagrid .dx-datagrid-rowsview,
+#config .dx-datagrid .dx-datagrid-content {
+    border-color: #e2e8f0;
+}
+
+#config .dx-datagrid .dx-datagrid-summary-item {
+    color: #64748b;
+}
+
+/* KPI Definition */
+#kpiDefinition.page {
+    max-width: 90%;
+}
+
+#kpiDefinition .dx-datagrid {
+    border-radius: 12px;
+    overflow: hidden;
+    background: #ffffff;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+}
+
+
+#kpiDefinition .dx-datagrid-rowsview .dx-row:hover {
+    background: #f1f5ff;
+}
+
+/* KPI Dashboard Setting */
+#kpiDashboardSetting.page {
+    max-width: 90%;
+}
+
+#kpiDashboardSetting .dx-datagrid {
+    border-radius: 12px;
+    overflow: hidden;
+    background: #ffffff;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+}
+
+
+#kpiDashboardSetting .dx-datagrid-rowsview .dx-row:hover {
+    background: #f1f5ff;
+}
+
+.kpi-widget-threshold-grid {
+    margin-top: 16px;
+}
+
+
+/* Ward member management */
+#wardMember.page {
+    max-width: 90%;
+}
+
+.wardmember-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+#wardMember .dx-datagrid {
+    border-radius: 12px;
+    overflow: hidden;
+    background: #ffffff;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+}
+
+
+#wardMember .dx-datagrid-rowsview .dx-row:hover {
+    background: #f1f5ff;
 }
 
 .attendance-sync .dx-form {
@@ -1574,4 +1981,70 @@ dx-license {
 .profile-section-title {
     font-weight: 600;
     margin-bottom: 8px;
+}
+
+/* Personal Settings layout */
+#personalSettingPage {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+}
+
+#personalSettingPage .part {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 7px;
+  padding: 12px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+  display: block;
+}
+
+#personalSettingPage #avatarPart {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+#personalSettingPage #avatarInput {
+  width: 100%;
+  max-width: 360px;
+}
+
+#personalSettingPage #avatarInput::file-selector-button {
+  min-width: var(--button-min);
+  border-radius: 7px;
+  margin-right: 10px;
+  cursor: pointer;
+}
+
+#personalSettingPage #avatarPart .avatar-large {
+  justify-self: start;
+}
+
+@media (max-width: 640px) {
+  #personalSettingPage #avatarInput {
+    max-width: 100%;
+  }
+}
+
+#personalSettingPage .avatar-large {
+  width: 120px;
+  height: 120px;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 2px solid #e5e7eb;
+}
+
+
+/* Force Add Row (+) button in grid toolbar to success color */
+.dx-datagrid .dx-datagrid-addrow-button .dx-button {
+    background: var(--success) !important;
+    border-color: var(--success) !important;
+    color: #fff !important;
+}
+
+.dx-datagrid .dx-datagrid-addrow-button .dx-button:hover {
+    background: var(--success-700) !important;
+    border-color: var(--success-700) !important;
 }

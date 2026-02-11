@@ -1,6 +1,6 @@
 const WardMember = require('../model/ward-member.model');
 const User = require('../model/user.model');
-const Master = require('../model/base/master.schema');
+const Configuration = require('../model/configuration.model');
 const asyncHandler = require('../helpers/async.handler');
 const AppError = require('../helpers/apperror');
 const response = require('../helpers/response');
@@ -14,7 +14,7 @@ exports.list = asyncHandler(async (req, res) => {
 
   const items = await WardMember.find(filter)
     .populate('userId', 'name employeeCode email avatar')
-    .populate('wardId', 'name code meta')
+    .populate('wardId', 'conf_description conf_code')
     .sort({ createdAt: -1 });
 
   response.success(res, items, 'User wards loaded');
@@ -24,10 +24,10 @@ exports.meta = asyncHandler(async (req, res) => {
   const users = await User.find()
     .select('name employeeCode email avatar')
     .sort({ createdAt: -1 });
-  const wards = await Master.find({ type: 'WARD', status: 'ACTIVE' })
-    .select('name code');
-  const positions = await Master.find({ type: 'POSITION', status: 'ACTIVE' })
-    .select('code name');
+  const wards = await Configuration.find({ typ_code: 'DEPT' })
+    .select('conf_code conf_description');
+  const positions = await Configuration.find({ typ_code: 'POST' })
+    .select('conf_code conf_description');
 
   response.success(res, { users, wards, positions }, 'Meta loaded');
 });
@@ -36,19 +36,10 @@ exports.usersByWard = asyncHandler(async (req, res) => {
   const { wardId, position, excludeSelf } = req.query;
   if (!wardId) throw new AppError('wardId is required', 400);
 
-  const ward = await Master.findById(wardId).select('meta');
+  const ward = await Configuration.findById(wardId).select('_id');
   if (!ward) throw new AppError('Ward not found', 404);
 
-  const group = ward.meta?.group || null;
-  let wardIds = [wardId];
-  if (group) {
-    const sameGroup = await Master.find({ type: 'WARD', 'meta.group': group })
-      .select('_id')
-      .lean();
-    wardIds = sameGroup.map(w => w._id);
-  }
-
-  const query = { wardId: { $in: wardIds }, status: 'ACTIVE' };
+  const query = { wardId, status: 'ACTIVE' };
   if (position) query.position = position;
 
   const items = await WardMember.find(query)
@@ -116,13 +107,13 @@ exports.myWards = asyncHandler(async (req, res) => {
     userId: req.user._id,
     status: 'ACTIVE'
   })
-    .populate('wardId', 'name code')
+    .populate('wardId', 'conf_description conf_code')
     .lean();
 
   const wards = items
     .map(i => i.wardId)
     .filter(Boolean)
-    .map(w => ({ _id: w._id, name: w.name, code: w.code }));
+    .map(w => ({ _id: w._id, name: w.conf_description, code: w.conf_code }));
 
   response.success(res, wards, 'My wards loaded');
 });

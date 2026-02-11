@@ -5,16 +5,12 @@ window.renderChangeRequest = async function renderChangeRequest() {
         window.showPage('change');
     }
 
-    const token = localStorage.getItem('auth_token');
-    const apiBase = window.BASE_URL || '';
-    const authHeaders = () => (token ? { Authorization: `Bearer ${token}` } : {});
-
     const changeEl = $('#change');
     changeEl.empty();
 
     const header = $('<div>', { class: 'settings-placeholder', text: 'Create Change Request' });
     const formWrap = $('<div>', { id: 'changeRequestForm' });
-    const gridWrap = $('<div>', { id: 'changeRequestGrid' });
+    const gridWrap = $('<div>', { id: 'changeRequestGrid', class: 'dx-grid change-request-grid' });
     const actions = $('<div>', { class: 'form-actions-left' });
     const btnSubmit = $('<div>', { id: 'btnChangeSubmit' });
     const btnReset = $('<div>', { id: 'btnChangeReset' });
@@ -39,7 +35,7 @@ window.renderChangeRequest = async function renderChangeRequest() {
     const updateMonthLabel = () => monthLabel.text(getMonthLabel(selectedMonth));
 
     const loadSchedules = async () => {
-        const res = await fetch(`${apiBase}/api/schedules/my`, { headers: authHeaders() });
+        const res = await Common.fetchWithAuth('/api/schedules/my');
         const json = await res.json();
         console.log('json Data on change: ',json);
         if (!res.ok) {
@@ -154,13 +150,13 @@ window.renderChangeRequest = async function renderChangeRequest() {
         const wardId = selected[0].wardId;
         if (!wardId) return;
 
-        const meRes = await fetch(`${apiBase}/api/ward-members/me?wardId=${wardId}`, { headers: authHeaders() });
+        const meRes = await Common.fetchWithAuth(`/api/ward-members/me?wardId=${wardId}`);
         const meJson = await meRes.json();
         if (!meRes.ok) return;
         const myPosition = meJson?.data?.position;
 
         const positionQuery = myPosition ? `&position=${encodeURIComponent(myPosition)}` : '';
-        const res = await fetch(`${apiBase}/api/ward-members/users?wardId=${wardId}${positionQuery}&excludeSelf=1`, { headers: authHeaders() });
+        const res = await Common.fetchWithAuth(`/api/ward-members/users?wardId=${wardId}${positionQuery}&excludeSelf=1`);
         const json = await res.json();
         if (!res.ok) return;
         swapCandidates = Array.isArray(json.data) ? json.data : [];
@@ -183,7 +179,7 @@ window.renderChangeRequest = async function renderChangeRequest() {
                 return;
             }
 
-            const meRes = await fetch(`${apiBase}/api/users/me`, { headers: authHeaders() });
+            const meRes = await Common.fetchWithAuth('/api/users/me');
             const meJson = await meRes.json();
             if (meRes.ok) {
                 const me = meJson?.data || {};
@@ -202,9 +198,7 @@ window.renderChangeRequest = async function renderChangeRequest() {
                 shiftCode: s.shiftCode
             }));
 
-            const res = await fetch(`${apiBase}/api/changes`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', ...authHeaders() },
+            const res = await Common.postWithAuth('/api/changes', {
                 body: JSON.stringify({
                     type: data.type,
                     reason: data.reason,

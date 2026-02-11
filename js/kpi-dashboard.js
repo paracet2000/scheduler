@@ -4,29 +4,15 @@ window.renderKpiDashboard = async function renderKpiDashboard() {
         window.showPage('kpiDashboard');
     }
 
-    const roles = typeof window.getStoredRoles === 'function' ? window.getStoredRoles() : [];
-    const isAdmin = roles.includes('admin');
-    const isHead = roles.includes('head');
-    const isFinance = roles.includes('finance');
-
     const container = $('#kpiDashboard');
     container.empty();
 
-    if (!isAdmin && !isHead && !isFinance) {
-        container.append($('<div>', { class: 'settings-placeholder', text: 'KPI dashboard is available for admin/head/finance only.' }));
-        return;
-    }
-
-    const apiBase = window.BASE_URL || '';
-    const token = localStorage.getItem('auth_token');
-    const authHeaders = () => (token ? { Authorization: `Bearer ${token}` } : {});
-
     let wards = [];
     try {
-        const res = await fetch(`${apiBase}/api/masters/WARD`, { headers: authHeaders() });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.message || 'Failed to load wards');
-        wards = Array.isArray(json.data) ? json.data : [];
+        wards = await Helper.getWards();
+        if (!Array.isArray(wards) || !wards.length) {
+            throw new Error('Failed to load wards');
+        }
     } catch (err) {
         container.append($('<div>', { class: 'settings-placeholder', text: err.message || 'Unable to load wards.' }));
         return;
@@ -64,7 +50,7 @@ window.renderKpiDashboard = async function renderKpiDashboard() {
 
     const wardSelect = $('#kpiDashWard').dxTagBox({
         items: wards,
-        displayExpr: 'name',
+        displayExpr: (item) => item ? (item.conf_description || item.name || item.conf_code || '') : '',
         valueExpr: '_id',
         value: wards[0]?._id ? [wards[0]._id] : [],
         placeholder: 'Select wards'
@@ -82,15 +68,101 @@ window.renderKpiDashboard = async function renderKpiDashboard() {
 
     const shiftSelect = $('#kpiDashShift').dxTagBox({
         items: [
-            { code: 'M', name: 'เช้า' },
-            { code: 'A', name: 'บ่าย' },
-            { code: 'N', name: 'ดึก' }
+            { code: 'ช', name: 'เช้า' },
+            { code: 'บ', name: 'บ่าย' },
+            { code: 'ด', name: 'ดึก' }
         ],
         displayExpr: 'name',
         valueExpr: 'code',
-        value: ['M', 'A', 'N'],
+        value: ['ช', 'บ', 'ด'],
         placeholder: '(ทั้งหมด)'
     }).dxTagBox('instance');
+
+    const hexToRgb = (hex) => {
+        const clean = String(hex || '').replace('#', '').trim();
+        if (clean.length === 3) {
+            return {
+                r: parseInt(clean[0] + clean[0], 16),
+                g: parseInt(clean[1] + clean[1], 16),
+                b: parseInt(clean[2] + clean[2], 16)
+            };
+        }
+        if (clean.length !== 6) return null;
+        return {
+            r: parseInt(clean.slice(0, 2), 16),
+            g: parseInt(clean.slice(2, 4), 16),
+            b: parseInt(clean.slice(4, 6), 16)
+        };
+    };
+
+    const rgbToHex = (rgb) => {
+        const toHex = (v) => Math.max(0, Math.min(255, v)).toString(16).padStart(2, '0');
+        return `#${toHex(rgb.r)}${toHex(rgb.g)}${toHex(rgb.b)}`;
+    };
+
+    const lerp = (a, b, t) => Math.round(a + (b - a) * t);
+
+    const buildGradientRanges = (baseRanges, stepsPerRange = 12) => {
+        if (!Array.isArray(baseRanges) || baseRanges.length < 2) return baseRanges || [];
+        const segments = [];
+        baseRanges.forEach((r, idx) => {
+            const start = Number(r.startValue) || 0;
+            const end = Number(r.endValue) || 0;
+            if (end <= start) return;
+            const startRgb = hexToRgb(r.color);
+            const nextColor = baseRanges[idx + 1]?.color || r.color;
+            const endRgb = hexToRgb(nextColor);
+            if (!startRgb || !endRgb) {
+                segments.push({ startValue: start, endValue: end, color: r.color });
+                return;
+            }
+            const span = end - start;
+            const steps = Math.max(2, Number(stepsPerRange) || 12);
+            for (let i = 0; i < steps; i++) {
+                const t1 = i / steps;
+                const t2 = (i + 1) / steps;
+                const color = rgbToHex({
+                    r: lerp(startRgb.r, endRgb.r, t1),
+                    g: lerp(startRgb.g, endRgb.g, t1),
+                    b: lerp(startRgb.b, endRgb.b, t1)
+                });
+                segments.push({
+                    startValue: start + span * t1,
+                    endValue: start + span * t2,
+                    color
+                });
+            }
+        });
+        return segments;
+    };
+
+    const buildAlphaRanges = (baseRanges, stepsPerRange = 10) => {
+        if (!Array.isArray(baseRanges) || !baseRanges.length) return baseRanges || [];
+        const segments = [];
+        baseRanges.forEach((r) => {
+            const start = Number(r.startValue) || 0;
+            const end = Number(r.endValue) || 0;
+            if (end <= start) return;
+            const rgb = hexToRgb(r.color);
+            if (!rgb) {
+                segments.push({ startValue: start, endValue: end, color: r.color });
+                return;
+            }
+            const span = end - start;
+            const steps = Math.max(2, Number(stepsPerRange) || 10);
+            for (let i = 0; i < steps; i++) {
+                const t1 = i / steps;
+                const t2 = (i + 1) / steps;
+                const alpha = 0.1 + (0.9 * t1);
+                segments.push({
+                    startValue: start + span * t1,
+                    endValue: start + span * t2,
+                    color: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha.toFixed(2)})`
+                });
+            }
+        });
+        return segments;
+    };
 
     const renderCards = (items) => {
         grid.empty();
@@ -115,12 +187,22 @@ window.renderKpiDashboard = async function renderKpiDashboard() {
             };
             items = [sample];
         }
+        const resolveValueColor = (value, ranges) => {
+            const v = Number(value);
+            if (Number.isNaN(v)) return { text: '#0f172a', bg: '#f1f5f9' };
+            const hit = (ranges || []).find(r => v >= Number(r.startValue) && v <= Number(r.endValue));
+            if (!hit) return { text: '#0f172a', bg: '#f1f5f9' };
+            const rgb = hexToRgb(hit.color);
+            if (!rgb) return { text: '#0f172a', bg: hit.color || '#f1f5f9' };
+            const bg = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.15)`;
+            return { text: hit.color, bg };
+        };
+
         items.forEach(item => {
             const card = $('<div>', { class: `kpi-card kpi-card--${item.status || 'unknown'}` });
             card.append($('<div>', { class: 'kpi-card-title', text: item.title || item.code }));
             const gaugeWrap = $('<div>', { class: 'kpi-gauge' });
             card.append(gaugeWrap);
-            card.append($('<div>', { class: 'kpi-card-value', text: `${item.value ?? 0}${item.unit ? ` ${item.unit}` : ''}` }));
             if (item.description) card.append($('<div>', { class: 'kpi-card-desc', text: item.description }));
             const legend = $('<div>', { class: 'kpi-gauge-legend' })
                 .append('<span class="legend legend-green"></span><span>Great</span>')
@@ -146,6 +228,27 @@ window.renderKpiDashboard = async function renderKpiDashboard() {
                 ranges.push({ startValue: 80, endValue: 100, color: '#22c55e' });
             }
 
+            const valueText = `${item.value ?? 0}${item.unit ? ` ${item.unit}` : ''}`;
+            const valueColors = resolveValueColor(item.value, ranges);
+            const isRed = valueColors.text === '#ef4444';
+            const isGreen = valueColors.text === '#22c55e';
+            card.append(
+                $('<div>', {
+                    class: `kpi-card-value${isRed ? ' kpi-value-alert' : ''}`,
+                    text: valueText
+                }).css({
+                    color: valueColors.text,
+                    backgroundColor: valueColors.bg
+                })
+            );
+            if (isGreen) {
+                card.append($('<div>', { class: 'kpi-card-heart', text: '💗' }));
+            }
+
+            const useGradient = !!item.gradient;
+            const renderRanges = useGradient ? buildAlphaRanges(ranges, 10) : ranges;
+            const curveWidth = Number(item.curveWidth) || 30;
+
             gaugeWrap.dxCircularGauge({
                 geometry: {
                     startAngle: 180,
@@ -161,9 +264,9 @@ window.renderKpiDashboard = async function renderKpiDashboard() {
                 },
                 rangeContainer: {
                     offset: 6,
-                    width: 35,
+                    width: curveWidth,
                     backgroundColor: '#e5e7eb',
-                    ranges
+                    ranges: renderRanges
                 },
                 value: Number(item.value || 0),
                 valueIndicator: {
@@ -236,12 +339,8 @@ window.renderKpiDashboard = async function renderKpiDashboard() {
         updateRangeText();
         const wardQuery = wardIds.length ? `&wardIds=${wardIds.join(',')}` : '';
         const shiftQuery = shifts.length ? `&shiftCodes=${shifts.join(',')}` : '';
-        const summaryReq = fetch(`${apiBase}/api/kpi/dashboard/summary?from=${from.toISOString()}&to=${to.toISOString()}${wardQuery}${shiftQuery}`, {
-            headers: authHeaders()
-        });
-        const checklistReq = fetch(`${apiBase}/api/kpi/dashboard/checklist?from=${from.toISOString()}&to=${to.toISOString()}${wardQuery}${shiftQuery}`, {
-            headers: authHeaders()
-        });
+        const summaryReq = Common.fetchWithAuth(`/api/kpi/dashboard/summary?from=${from.toISOString()}&to=${to.toISOString()}${wardQuery}${shiftQuery}`);
+        const checklistReq = Common.fetchWithAuth(`/api/kpi/dashboard/checklist?from=${from.toISOString()}&to=${to.toISOString()}${wardQuery}${shiftQuery}`);
 
         const [summaryRes, checklistRes] = await Promise.all([summaryReq, checklistReq]);
         const summaryJson = await summaryRes.json();

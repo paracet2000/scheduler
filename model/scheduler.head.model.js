@@ -5,11 +5,11 @@ const { Schema } = mongoose;
 
 const schedulerHeadSchema = new Schema(
   {
-    // อ้างอิง ward จาก master.model (type = WARD)
-    wardId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Master',
+    // ใช้รหัส ward (conf_code) แทน ObjectId
+    wardCode: {
+      type: String,
       required: true,
+      trim: true
     },
 
     // ช่วงวันที่อนุญาตให้สร้าง / แก้ไขเวร
@@ -76,7 +76,7 @@ const schedulerHeadSchema = new Schema(
 
 // 1 ward สามารถมี OPEN ได้เพียง 1 record เท่านั้น
 schedulerHeadSchema.index(
-  { wardId: 1 },
+  { wardCode: 1 },
   {
     unique: true,
     partialFilterExpression: { status: 'OPEN' },
@@ -85,7 +85,7 @@ schedulerHeadSchema.index(
 
 // index สำหรับ query ตอน create / edit schedule
 schedulerHeadSchema.index({
-  wardId: 1,
+  wardCode: 1,
   status: 1,
   periodStart: 1,
   periodEnd: 1,

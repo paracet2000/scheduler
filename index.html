@@ -29,27 +29,35 @@
 
     <!-- App -->
     <link rel="stylesheet" href="styles.css" />
-    <!-- API base URL override (set to Render URL in production) -->
-    <script>
-        window.BASE_URL = window.BASE_URL || '';
-    </script>
+    <script src="js/index2.js" defer></script>
     <script src="js/personal.js" defer></script>
-    <script src="js/master.js" defer></script>
+    <script src="js/scheduler-head.js" defer></script>
     <script src="js/changerequest.js" defer></script>
     <script src="js/schedulesummary.js" defer></script>
     <script src="js/userManagement.js" defer></script>
+    <script src="js/config.management.js" defer></script>
+    <script src="js/ward.member.js" defer></script>
     <script src="js/schedule.js" defer></script>
     <script src="js/kpi.js" defer></script>
+    <script src="js/kpi-definition.js" defer></script>
+    <script src="js/kpi-dashboard-setting.js" defer></script>
     <script src="js/kpi-dashboard.js" defer></script>
     <script src="js/kpi-tools.js" defer></script>
     <script src="js/commonreport.js" defer></script>
-    <script src="js/index.js" defer></script>
+    <script src="js/shift-pattern.js" defer></script>
+    <script src="js/user-rights.js" defer></script>
+    <script src="js/common.libs.js" defer></script>
+    <script src="js/helper.js" defer></script>
+    <script src="js/attendance.js" defer></script>
+    <script src="js/login.js" defer></script>
+    
 </head>
 
 <body class="dx-viewport">
 
     <!-- Top Bar -->
     <header class="topbar">
+        <img id="avatar" class="avatar" src="images/defaultprofile.jpg" alt="User Avatar" />
         <div class="logo">🩺 Nurse Scheduler</div>
         <nav class="top-menu" id="topMenu">
             <!-- future: user profile / logout -->
@@ -58,6 +66,13 @@
 
     <!-- Layout -->
     <div class="layout">
+        <aside class="drawer" id="drawer">
+            <div class="drawer-header">
+                <div class="drawer-title">Menu</div>
+                <button class="drawer-toggle" id="drawerToggle" aria-label="Toggle menu">☰</button>
+            </div>
+            <div class="drawer-menu" id="drawerMenu"></div>
+        </aside>
         <!-- Content -->
         <main class="main-content" id="mainContent">
 
@@ -92,25 +107,48 @@
                 </div>
             </div>
 
-            <div id="settingsPersonal" class="page pagehidden">
-                <div id="personalSettings"></div>
+            <div id="personalSettingPage" class="page pagehidden">
+                <div class="part" >
+                    <div id="profileForm"></div>
+                    <div id="btnPersonalSave"></div>
+                </div>
+                <div class="part">
+                    <div id="passwordForm"></div>                
+                    <div id="btnPasswordSave"></div>
+                </div>
+                <div class="part" id="avatarPart">
+                    <img id="avatarPreview" class="avatar-large" src="images/defaultprofile.jpg" alt="Avatar Preview" />
+                    <input type="file" id="avatarInput" accept="image/*" />
+                    <button type="button" id="btnAvatarUpload" class="dx-button dx-button-mode-contained dx-button-success">Upload</button>
+                </div>
             </div>
 
             <div id="settingsSystem" class="page pagehidden">
                 <div id="systemSettings"></div>
             </div>
 
+            <div id="schedulerHead" class="page pagehidden"></div>
+
             <div id="userManagement" class="page pagehidden">
                 <div id="userGrid"></div>
             </div>
+
+            <div id="config" class="page pagehidden"></div>
+            <div id="wardMember" class="page pagehidden"></div>
 
             <div id="kpiEntry" class="page pagehidden">
                 <div id="kpiEntryForm"></div>
             </div>
 
+            <div id="kpiDefinition" class="page pagehidden"></div>
+            <div id="kpiDashboardSetting" class="page pagehidden"></div>
+
             <div id="kpiDashboard" class="page pagehidden"></div>
             <div id="kpiTools" class="page pagehidden"></div>
             <div id="commonReport" class="page pagehidden"></div>
+            <div id="shiftPattern" class="page pagehidden"></div>
+            <div id="userRights" class="page pagehidden"></div>
+            <div id="attendanceSync" class="page pagehidden"></div>
 
         </main>
     </div>

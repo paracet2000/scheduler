@@ -4,41 +4,26 @@ window.renderCommonReport = async function renderCommonReport() {
         window.showPage('commonReport');
     }
 
-    const roles = typeof window.getStoredRoles === 'function' ? window.getStoredRoles() : [];
-    const isAdmin = roles.includes('admin');
-    const isHead = roles.includes('head');
-    const isFinance = roles.includes('finance');
-
     const container = $('#commonReport');
     container.empty();
-
-    if (!isAdmin && !isHead && !isFinance) {
-        container.append($('<div>', { class: 'settings-placeholder', text: 'Common Report is available for admin/head/finance only.' }));
-        return;
-    }
-
-    const apiBase = window.BASE_URL || '';
-    const token = localStorage.getItem('auth_token');
-    const authHeaders = () => (token ? { Authorization: `Bearer ${token}` } : {});
 
     let wards = [];
     let users = [];
     let positions = [];
     try {
-        const [wardRes, userRes, posRes] = await Promise.all([
-            fetch(`${apiBase}/api/masters/WARD`, { headers: authHeaders() }),
-            fetch(`${apiBase}/api/users`, { headers: authHeaders() }),
-            fetch(`${apiBase}/api/masters/POSITION`, { headers: authHeaders() })
+        const [wardList, userRes, posRes] = await Promise.all([
+            Helper.getWards(),
+            Common.fetchWithAuth('/api/users'),
+            Common.fetchWithAuth('/api/configuration?typ_code=POST')
         ]);
-        const wardJson = await wardRes.json();
         const userJson = await userRes.json();
         const posJson = await posRes.json();
-        if (!wardRes.ok) throw new Error(wardJson.message || 'Failed to load wards');
         if (!userRes.ok) throw new Error(userJson.message || 'Failed to load users');
         if (!posRes.ok) throw new Error(posJson.message || 'Failed to load positions');
-        wards = Array.isArray(wardJson.data) ? wardJson.data : [];
+        wards = Array.isArray(wardList) ? wardList : [];
         users = Array.isArray(userJson.data) ? userJson.data : [];
         positions = Array.isArray(posJson.data) ? posJson.data : [];
+        if (!wards.length) throw new Error('Failed to load wards');
     } catch (err) {
         container.append($('<div>', { class: 'settings-placeholder', text: err.message || 'Unable to load wards.' }));
         return;
@@ -60,7 +45,7 @@ window.renderCommonReport = async function renderCommonReport() {
         userId: null,
         from: new Date(now.getFullYear(), now.getMonth(), 1),
         to: new Date(now.getFullYear(), now.getMonth() + 1, 0),
-        shifts: ['M', 'A', 'N']
+        shifts: ['ช', 'บ', 'ด']
     };
 
     const panel = $('<div class="report-panel"></div>');
@@ -72,15 +57,15 @@ window.renderCommonReport = async function renderCommonReport() {
     const normalizeShift = (code) => {
         const raw = String(code || '').trim().toUpperCase();
         if (!raw) return '';
-        if (['M', 'CH', 'CHAO', 'เช้า', 'ช'].includes(raw)) return 'M';
-        if (['A', 'BAI', 'บ่าย', 'บ'].includes(raw)) return 'A';
-        if (['N', 'NIGHT', 'ดึก', 'ด'].includes(raw)) return 'N';
-        if (raw.startsWith('M')) return 'M';
-        if (raw.startsWith('A')) return 'A';
-        if (raw.startsWith('N')) return 'N';
-        if (raw.startsWith('ช')) return 'M';
-        if (raw.startsWith('บ')) return 'A';
-        if (raw.startsWith('ด')) return 'N';
+        if (['M', 'CH', 'CHAO', 'เช้า', 'ช'].includes(raw)) return 'ช';
+        if (['A', 'BAI', 'บ่าย', 'บ'].includes(raw)) return 'บ';
+        if (['N', 'NIGHT', 'ดึก', 'ด'].includes(raw)) return 'ด';
+        if (raw.startsWith('M')) return 'ช';
+        if (raw.startsWith('A')) return 'บ';
+        if (raw.startsWith('N')) return 'ด';
+        if (raw.startsWith('ช')) return 'ช';
+        if (raw.startsWith('บ')) return 'บ';
+        if (raw.startsWith('ด')) return 'ด';
         return raw;
     };
 
@@ -144,7 +129,7 @@ window.renderCommonReport = async function renderCommonReport() {
 
     const buildRateMap = async (userIds) => {
         if (!userIds || !userIds.length) return new Map();
-        const res = await fetch(`${apiBase}/api/user-shift-rates?userIds=${userIds.join(',')}`, { headers: authHeaders() });
+        const res = await Common.fetchWithAuth(`/api/user-shift-rates?userIds=${userIds.join(',')}`);
         const json = await res.json();
         if (!res.ok) {
             DevExpress.ui.notify(json.message || 'Failed to load shift rates', 'error', 3000);
@@ -157,9 +142,9 @@ window.renderCommonReport = async function renderCommonReport() {
             if (!userId || !code) return;
             const key = `${userId}|${code}`;
             map.set(key, Number(r.amount) || 0);
-            if (code === 'M') map.set(`${userId}|${THAI_M}`, Number(r.amount) || 0);
-            if (code === 'A') map.set(`${userId}|${THAI_A}`, Number(r.amount) || 0);
-            if (code === 'N') map.set(`${userId}|${THAI_N}`, Number(r.amount) || 0);
+            if (code === 'ช') map.set(`${userId}|${THAI_M}`, Number(r.amount) || 0);
+            if (code === 'บ') map.set(`${userId}|${THAI_A}`, Number(r.amount) || 0);
+            if (code === 'ด') map.set(`${userId}|${THAI_N}`, Number(r.amount) || 0);
             if (code === THAI_M) map.set(`${userId}|M`, Number(r.amount) || 0);
             if (code === THAI_A) map.set(`${userId}|A`, Number(r.amount) || 0);
             if (code === THAI_N) map.set(`${userId}|N`, Number(r.amount) || 0);
@@ -196,7 +181,7 @@ window.renderCommonReport = async function renderCommonReport() {
 
         const filteredRows = summary.rows.filter(row => !userId || row.userId === userId);
         const tableWrap = $('<div>', { class: 'summary-table-wrap' });
-        const gridEl = $('<div>', { class: 'summary-grid' });
+        const gridEl = $('<div>', { id: 'commonReportScheduleSummaryGrid', class: 'summary-grid commonreport-grid' });
         tableWrap.append(gridEl);
 
         let sumMorning = 0;
@@ -350,9 +335,8 @@ window.renderCommonReport = async function renderCommonReport() {
 
         const from = new Date(data.from);
         const to = new Date(data.to);
-        const res = await fetch(
-            `${apiBase}/api/schedules/summary-range/${wardId}?from=${from.toISOString()}&to=${to.toISOString()}`,
-            { headers: authHeaders() }
+        const res = await Common.fetchWithAuth(
+            `/api/schedules/summary-range/${wardId}?from=${from.toISOString()}&to=${to.toISOString()}`
         );
         const json = await res.json();
         if (!res.ok) {
@@ -438,7 +422,7 @@ window.renderCommonReport = async function renderCommonReport() {
         rows.push(totalRow);
 
         const tableWrap = $('<div>', { class: 'summary-table-wrap' });
-        const gridEl = $('<div>', { class: 'summary-grid' });
+        const gridEl = $('<div>', { id: 'commonReportPositionSummaryGrid', class: 'summary-grid commonreport-grid' });
         tableWrap.append(gridEl);
 
         const columns = [
@@ -501,9 +485,8 @@ window.renderCommonReport = async function renderCommonReport() {
 
         const from = new Date(data.from);
         const to = new Date(data.to);
-        const res = await fetch(
-            `${apiBase}/api/schedules/summary-range/${wardId}?from=${from.toISOString()}&to=${to.toISOString()}`,
-            { headers: authHeaders() }
+        const res = await Common.fetchWithAuth(
+            `/api/schedules/summary-range/${wardId}?from=${from.toISOString()}&to=${to.toISOString()}`
         );
         const json = await res.json();
         if (!res.ok) {
@@ -571,9 +554,8 @@ window.renderCommonReport = async function renderCommonReport() {
 
         const rows = [];
         for (const wardId of wardIds) {
-            const res = await fetch(
-                `${apiBase}/api/schedules/summary-range/${wardId}?from=${from.toISOString()}&to=${to.toISOString()}`,
-                { headers: authHeaders() }
+            const res = await Common.fetchWithAuth(
+                `/api/schedules/summary-range/${wardId}?from=${from.toISOString()}&to=${to.toISOString()}`
             );
             const json = await res.json();
             if (!res.ok) {
@@ -599,7 +581,7 @@ window.renderCommonReport = async function renderCommonReport() {
         }
 
         const tableWrap = $('<div>', { class: 'summary-table-wrap' });
-        const gridEl = $('<div>', { class: 'summary-grid' });
+        const gridEl = $('<div>', { id: 'commonReportBookingSummaryGrid', class: 'summary-grid commonreport-grid' });
         tableWrap.append(gridEl);
 
         const headerMap = {
@@ -660,9 +642,8 @@ window.renderCommonReport = async function renderCommonReport() {
         const to = new Date(data.to);
         const shiftCodes = (data.shifts || []).map(s => String(s));
 
-        const res = await fetch(
-            `${apiBase}/api/kpi/entries-range?from=${from.toISOString()}&to=${to.toISOString()}&wardIds=${wardIds.join(',')}&shiftCodes=${shiftCodes.join(',')}`,
-            { headers: authHeaders() }
+        const res = await Common.fetchWithAuth(
+            `/api/kpi/entries-range?from=${from.toISOString()}&to=${to.toISOString()}&wardIds=${wardIds.join(',')}&shiftCodes=${shiftCodes.join(',')}`
         );
         const json = await res.json();
         if (!res.ok) {
@@ -708,7 +689,7 @@ window.renderCommonReport = async function renderCommonReport() {
         }
 
         const tableWrap = $('<div>', { class: 'summary-table-wrap' });
-        const gridEl = $('<div>', { class: 'summary-grid' });
+        const gridEl = $('<div>', { id: 'commonReportKpiCompletenessGrid', class: 'summary-grid commonreport-grid' });
         tableWrap.append(gridEl);
         const headerMap = {
             shift: 'Shift',
@@ -839,7 +820,7 @@ window.renderCommonReport = async function renderCommonReport() {
         });
 
         const tableWrap = $('<div>', { class: 'summary-table-wrap' });
-        const gridEl = $('<div>', { class: 'summary-grid' });
+        const gridEl = $('<div>', { id: 'commonReportPayrollSummaryGrid', class: 'summary-grid commonreport-grid' });
         tableWrap.append(gridEl);
 
         const headerMap = {
@@ -972,7 +953,7 @@ window.renderCommonReport = async function renderCommonReport() {
         rows.push(totalRow);
 
         const tableWrap = $('<div>', { class: 'summary-table-wrap' });
-        const gridEl = $('<div>', { class: 'summary-grid' });
+        const gridEl = $('<div>', { id: 'commonReportPayrollPositionSummaryGrid', class: 'summary-grid commonreport-grid' });
         tableWrap.append(gridEl);
 
         const columns = [
@@ -1035,9 +1016,8 @@ window.renderCommonReport = async function renderCommonReport() {
 
         const from = new Date(data.from);
         const to = new Date(data.to);
-        const res = await fetch(
-            `${apiBase}/api/schedules/summary-range/${wardId}?from=${from.toISOString()}&to=${to.toISOString()}`,
-            { headers: authHeaders() }
+        const res = await Common.fetchWithAuth(
+            `/api/schedules/summary-range/${wardId}?from=${from.toISOString()}&to=${to.toISOString()}`
         );
         const json = await res.json();
         if (!res.ok) {
@@ -1074,9 +1054,8 @@ window.renderCommonReport = async function renderCommonReport() {
 
         const from = new Date(data.from);
         const to = new Date(data.to);
-        const res = await fetch(
-            `${apiBase}/api/schedules/summary-range/${wardId}?from=${from.toISOString()}&to=${to.toISOString()}`,
-            { headers: authHeaders() }
+        const res = await Common.fetchWithAuth(
+            `/api/schedules/summary-range/${wardId}?from=${from.toISOString()}&to=${to.toISOString()}`
         );
         const json = await res.json();
         if (!res.ok) {
@@ -1123,7 +1102,7 @@ window.renderCommonReport = async function renderCommonReport() {
                 editorType: 'dxTagBox',
                 editorOptions: {
                     items: wards,
-                    displayExpr: 'name',
+                    displayExpr: (item) => item ? (item.conf_description || item.name || item.conf_code || '') : '',
                     valueExpr: '_id'
                 }
             },
@@ -1156,9 +1135,9 @@ window.renderCommonReport = async function renderCommonReport() {
                 editorType: 'dxTagBox',
                 editorOptions: {
                     items: [
-                        { code: 'M', name: 'เช้า' },
-                        { code: 'A', name: 'บ่าย' },
-                        { code: 'N', name: 'ดึก' }
+                        { code: 'ช', name: 'เช้า' },
+                        { code: 'บ', name: 'บ่าย' },
+                        { code: 'ด', name: 'ดึก' }
                     ],
                     displayExpr: 'name',
                     valueExpr: 'code'

@@ -10,7 +10,7 @@ window.renderKpiTools = function renderKpiTools() {
 
     if (!canUse) {
         container.append($('<div>', { class: 'settings-placeholder', text: 'KPI Tools is not enabled for this user.' }));
-        return;
+        // return;
     }
 
     const wrapper = $('<div>', { class: 'kpi-tools-wrapper' });
@@ -57,7 +57,7 @@ window.renderKpiTools = function renderKpiTools() {
     const formEl = $('<div id="kpiToolsForm"></div>');
     builder.append(formEl);
 
-    const rangesEl = $('<div id="kpiToolsRanges"></div>');
+    const rangesEl = $('<div id="kpiToolsRanges" class="dx-grid kpi-tools-range-grid"></div>');
     builder.append($('<div>', { class: 'kpi-tools-subtitle', text: 'Ranges' }));
     builder.append(rangesEl);
 
@@ -131,7 +131,8 @@ window.renderKpiTools = function renderKpiTools() {
                     widget: 'dxButton',
                     options: {
                         icon: 'add',
-                        text: 'Add JSON',
+                        text: 'JSON',
+                        type: 'default',
                         onClick: addConfigToJson
                     }
                 },
@@ -140,7 +141,8 @@ window.renderKpiTools = function renderKpiTools() {
                     widget: 'dxButton',
                     options: {
                         icon: 'download',
-                        text: 'Download JSON',
+                        text: 'JSON',
+                        type: 'success',
                         onClick: downloadJson
                     }
                 }

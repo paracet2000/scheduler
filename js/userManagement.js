@@ -5,14 +5,9 @@ window.renderUserManagement = async function renderUserManagement() {
         window.showPage('userManagement');
     }
 
-    const token = localStorage.getItem('auth_token');
-    const apiBase = window.BASE_URL || '';
-
     let users = [];
     try {
-        const res = await fetch(`${apiBase}/api/users`, {
-            headers: token ? { Authorization: `Bearer ${token}` } : {}
-        });
+        const res = await Common.fetchWithAuth('/api/users');
         const json = await res.json();
         if (!res.ok) {
             throw new Error(json.message || 'Failed to load users');
@@ -30,7 +25,7 @@ window.renderUserManagement = async function renderUserManagement() {
 
     const rolesList = ['user', 'head', 'approver', 'hr', 'finance', 'admin'];
 
-    $('#userGrid').dxDataGrid({
+    $('#userGrid').addClass('dx-grid user-grid').dxDataGrid({
         dataSource: users,
         keyExpr: '_id',
         showBorders: true,
@@ -86,12 +81,7 @@ window.renderUserManagement = async function renderUserManagement() {
                         const newPassword = window.prompt('Enter new password');
                         if (!newPassword) return;
 
-                        const res = await fetch(`${apiBase}/api/users/${options.data._id}/reset-password`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                Authorization: `Bearer ${token}`
-                            },
+                        const res = await Common.postWithAuth(`/api/users/${options.data._id}/reset-password`, {
                             body: JSON.stringify({ password: newPassword })
                         });
                         const json = await res.json();
@@ -109,12 +99,7 @@ window.renderUserManagement = async function renderUserManagement() {
         onRowUpdating: async (e) => {
             const id = e.key;
             const payload = { ...e.oldData, ...e.newData };
-            const res = await fetch(`${apiBase}/api/users/${id}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                },
+            const res = await Common.putWithAuth(`/api/users/${id}`, {
                 body: JSON.stringify(payload)
             });
             const json = await res.json();

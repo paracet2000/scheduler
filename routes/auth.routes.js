@@ -15,5 +15,10 @@ router.post(
   authenticate,
   authController.resendVerifyEmail
 );
+router.post(
+  '/verify-password',
+  authenticate,
+  authController.verifyPassword
+);
 
 module.exports = router;

@@ -2,34 +2,38 @@
 // Personal Settings UI
 window.renderPersonalSettings = async function renderPersonalSettings() {
     if (typeof window.showPage === 'function') {
-        window.showPage('settingsPersonal');
+        window.showPage('personalSettingPage');
     }
-
-    const apiBase = window.BASE_URL || '';
-    const token = localStorage.getItem('auth_token');
-
-    $('#personalSettings').empty();
+    if (!Common.getToken()) {
+        if (typeof window.renderLogin === 'function') {
+            window.renderLogin();
+        }
+        return;
+    }
+    $('#profileForm').empty();
 
     let profile = null;
     let wardNames = '-';
     try {
-        console.log('token Data on me: ',token);
-        const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
         const [res, wardRes] = await Promise.all([
-            fetch(`${apiBase}/api/users/me`, { headers: authHeaders }),
-            fetch(`${apiBase}/api/ward-members/mine`, { headers: authHeaders })
+            Common.fetchWithAuth('/api/users/me'),
+            Common.fetchWithAuth('/api/ward-members/mine')
         ]);
         const json = await res.json();
         const wardJson = await wardRes.json();
         if (!res.ok) {
             throw new Error(json.message || 'Failed to load profile');
         }
+        // ใช้ข้อมูลโปรไฟล์จาก API (ถ้าไม่มีให้เป็น null)
         profile = json.data || null;
         if (wardRes.ok) {
+            // wardJson.data ต้องเป็น array ไม่ใช่ให้ fallback เป็น []
             const wards = Array.isArray(wardJson.data) ? wardJson.data : [];
+            // ดึงชื่อ ward (ใช้ name ก่อน ถ้าไม่มีใช้ code) แล้วตัดค่าที่ว่างทิ้ง
             const names = wards
                 .map(w => w.name || w.code || '')
-                .filter(Boolean);
+                .filter(Boolean); //filter(Boolean) คือการกรอง เอาเฉพาะค่าที่เป็น truthy
+            // รวมเป็นข้อความสำหรับแสดงผล ถ้าไม่มีชื่อเลยให้เป็น "-"
             wardNames = names.length ? names.join(', ') : '-';
         }
     } catch (err) {
@@ -39,73 +43,22 @@ window.renderPersonalSettings = async function renderPersonalSettings() {
         return;
     }
 
-    const header = $('<div>', { class: 'profile-header' });
-    const avatar = $('<div>', { class: 'profile-avatar' });
-    if (profile?.avatar) {
-        const resolved = typeof window.resolveAvatarUrl === 'function'
-            ? window.resolveAvatarUrl(profile.avatar)
-            : profile.avatar;
-        avatar.css('background-image', `url(${resolved})`).addClass('has-image');
-    } else {
-        const initial = (profile?.name || profile?.email || 'U').trim().charAt(0).toUpperCase();
-        avatar.text(initial);
-    }
-    if (typeof window.updateUserAvatar === 'function') {
-        window.updateUserAvatar(profile?.avatar || null);
-    }
-
-    const info = $('<div>', { class: 'profile-info' })
-        .append($('<div>', { class: 'profile-name', text: profile?.name || 'User' }))
-        .append($('<div>', { class: 'profile-email', text: profile?.email || '' }));
-
-    header.append(avatar, info);
-
-    const meta = $('<div>', { class: 'profile-meta' })
-        .append($('<div>', { class: 'profile-badge', text: `Status: ${profile?.status || 'ACTIVE'}` }))
-        .append($('<div>', { class: 'profile-badge', text: `Roles: ${(profile?.roles || []).join(', ') || '-'}` }))
-        .append($('<div>', { class: 'profile-badge', text: `Ward: ${wardNames}` }));
-
-    const profileFormWrap = $('<div>', { class: 'profile-section' });
-    const profileFormEl = $('<div>', { id: 'profileForm' });
-    const profileSaveEl = $('<div>', { id: 'profileSaveBtn' });
-    profileFormWrap.append($('<div>', { class: 'profile-section-title', text: 'Basic Info' }), profileFormEl);
-    profileFormWrap.append(profileSaveEl);
-
-    const avatarWrap = $('<div>', { class: 'profile-section' });
-    const uploaderEl = $('<div>', { id: 'avatarUploader' });
-    avatarWrap.append($('<div>', { class: 'profile-section-title', text: 'Profile Image' }), uploaderEl);
-
-    const passwordWrap = $('<div>', { class: 'profile-section' });
-    const passwordFormEl = $('<div>', { id: 'passwordForm' });
-    const passwordBtnEl = $('<div>', { id: 'passwordBtn' });
-    passwordWrap.append(
-        $('<div>', { class: 'profile-section-title', text: 'Change Password' }),
-        passwordFormEl,
-        passwordBtnEl
-    );
-
-    $('#personalSettings').append(header, meta, profileFormWrap, avatarWrap, passwordWrap);
-
     $('#profileForm').dxForm({
         formData: {
             name: profile?.name || '',
             email: profile?.email || '',
             phone: profile?.phone || ''
         },
-        colCount: 2,
+        colCount: 1,
         showValidationSummary: true,
         items: [
             { dataField: 'name', label: { text: 'Name' }, validationRules: [{ type: 'required' }] },
-            {
-                dataField: 'email',
-                label: { text: 'Email' },
-                editorOptions: { mode: 'email', readOnly: true }
-            },
+            { dataField: 'email',label: { text: 'Email' },editorOptions: { mode: 'email', readOnly: !!profile?.email}},
             { dataField: 'phone', label: { text: 'Phone' } }
         ]
     });
 
-    $('#profileSaveBtn').dxButton({
+    $('#btnPersonalSave').dxButton({
         text: 'Save',
         type: 'success',
         onClick: async () => {
@@ -113,12 +66,7 @@ window.renderPersonalSettings = async function renderPersonalSettings() {
             const validation = form.validate();
             if (!validation.isValid) return;
             const data = form.option('formData') || {};
-            const res = await fetch(`${apiBase}/api/users/me`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...uploadHeaders
-                },
+            const res = await Common.putWithAuth('/api/users/me', {
                 body: JSON.stringify({ name: data.name, phone: data.phone })
             });
             const json = await res.json();
@@ -132,41 +80,63 @@ window.renderPersonalSettings = async function renderPersonalSettings() {
         }
     });
 
-    const uploadHeaders = token ? { Authorization: `Bearer ${token}` } : {};
-    
-    $('#avatarUploader').dxFileUploader({
-        selectButtonText: 'Select Image',
-        labelText: 'or drag & drop',
-        accept: 'image/*',
-        name: 'image',
-        uploadMode: 'instantly',
-        uploadUrl: `${apiBase}/api/users/me/avatar`,
-        uploadHeaders,
-        onUploaded: async () => {
+    // Avatar upload UI inside dxForm
+    const uploadAvatar = async (file, previewId) => {
+        console.log('file Data: ',file);
+        if (!file) return;
+        try {
+            const formData = new FormData();
+            formData.append('image', file);
+            console.log('formData Data: ',formData);
+            const res = await Common.postWithAuth('/api/users/me/avatar', {
+                body: formData
+            });
+            const json = await res.json();
+            if (!res.ok) {
+                DevExpress.ui.notify(json.message || 'Upload failed', 'error', 3000);
+                return;
+            }
             DevExpress.ui.notify('Avatar updated', 'success', 2000);
-            try {
-                const res = await fetch(`${apiBase}/api/users/me`, {
-                    headers: uploadHeaders
-                });
-                const json = await res.json();
-                if (res.ok && json.data) {
-                    const newAvatar = json.data.avatar;
-                    if (newAvatar) {
-                        const resolved = typeof window.resolveAvatarUrl === 'function'
-                            ? window.resolveAvatarUrl(newAvatar)
-                            : newAvatar;
-                        avatar.css('background-image', `url(${resolved})`).addClass('has-image').text('');
-                        if (typeof window.updateUserAvatar === 'function') {
-                            window.updateUserAvatar(newAvatar);
-                        }
-                    }
-                }
-            } catch {}
-        },
-        onUploadError: (e) => {
-            DevExpress.ui.notify(e.error?.message || 'Upload failed', 'error', 3000);
+
+
+        } catch (err) {
+            DevExpress.ui.notify(err.message || 'Upload failed', 'error', 3000);
         }
-    });
+    };
+
+    const $avatarPart = $('#avatarPart');
+    if ($avatarPart.length) {
+        const $input = $('#avatarInput');
+        const $btn = $('#btnAvatarUpload');
+
+        // load current avatar into preview
+        const currentAvatar = Common.resolveAvatarUrl(profile?.avatar || '') || 'images/defaultprofile.jpg';
+        $('#avatarPreview').attr('src', currentAvatar);
+
+        $input.on('change', () => {
+            const file = $input[0]?.files?.[0];
+            if (!file) return;
+            const previewUrl = URL.createObjectURL(file);
+            $('#avatarPreview').attr('src', previewUrl);
+        });
+
+        $btn.on('click', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!Common.getToken()) {
+                DevExpress.ui.notify('Please login first', 'warning', 2000);
+                return;
+            }
+            const file = $input[0]?.files?.[0];
+            if (!file) {
+                DevExpress.ui.notify('Please select an image first', 'warning', 2000);
+                return;
+            }
+            await uploadAvatar(file, 'avatarPreview');
+            await Common.renderProfileAvatar($('#avatar'));
+            Common.setFavicon();
+        });
+    }
 
     $('#passwordForm').dxForm({
         formData: {
@@ -174,7 +144,7 @@ window.renderPersonalSettings = async function renderPersonalSettings() {
             newPassword: '',
             confirmPassword: ''
         },
-        colCount: 2,
+        colCount: 1,
         showValidationSummary: true,
         items: [
             {
@@ -193,7 +163,18 @@ window.renderPersonalSettings = async function renderPersonalSettings() {
                 dataField: 'confirmPassword',
                 label: { text: 'Confirm Password' },
                 editorOptions: { mode: 'password' },
-                validationRules: [{ type: 'required' }]
+                validationRules: [
+                    { type: 'required' },
+                    {
+                        type: 'custom',
+                        message: 'Passwords do not match',
+                        validationCallback: (e) => {
+                            const form = $('#passwordForm').dxForm('instance');
+                            const data = form ? form.option('formData') : {};
+                            return e.value === (data?.newPassword || '');
+                        }
+                    }
+                ]
             }
         ]
     });
@@ -234,12 +215,7 @@ window.renderPersonalSettings = async function renderPersonalSettings() {
                     onClick: async () => {
                         const form = $('#passwordForm').dxForm('instance');
                         const data = form.option('formData');
-                        const res = await fetch(`${apiBase}/api/users/me/change-password`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                ...uploadHeaders
-                            },
+                        const res = await Common.postWithAuth('/api/users/me/change-password', {
                             body: JSON.stringify({
                                 currentPassword: data.currentPassword,
                                 newPassword: data.newPassword
@@ -259,8 +235,8 @@ window.renderPersonalSettings = async function renderPersonalSettings() {
         ]
     }).dxPopup('instance');
 
-    $('#passwordBtn').dxButton({
-        text: 'Update Password',
+    $('#btnPasswordSave').dxButton({
+        text: 'Update',
         type: 'success',
         onClick: async () => {
             const form = $('#passwordForm').dxForm('instance');
@@ -271,7 +247,21 @@ window.renderPersonalSettings = async function renderPersonalSettings() {
                 DevExpress.ui.notify('Passwords do not match', 'error', 3000);
                 return;
             }
+            // Check current password before showing confirmation
+            try {
+                const res = await Common.postWithAuth('/api/auth/verify-password', {
+                    body: JSON.stringify({ password: data.currentPassword })
+                });
+                const json = await res.json();
+                if (!res.ok || !json.data?.valid) {
+                    DevExpress.ui.notify('Current password is incorrect', 'error', 3000);
+                    return;
+                }
+            } catch {}
+
             confirmPopup.show();
         }
     });
+    // load cuurent avatar into avatarPreview
+    
 };

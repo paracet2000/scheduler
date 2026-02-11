@@ -11,14 +11,15 @@ const AppError = require('../helpers/apperror');
  * HEAD / ADMIN
  */
 exports.createSchedulerHead = asyncHandler(async (req, res) => {
-  const { wardId, periodStart, periodEnd, note } = req.body;
+  const { wardCode, periodStart, periodEnd, note } = req.body;
+  const code = String(wardCode || '').trim().toUpperCase();
 
-  if (!wardId || !periodStart || !periodEnd) {
-    throw new AppError('wardId, periodStart and periodEnd are required', 400);
+  if (!code || !periodStart || !periodEnd) {
+    throw new AppError('wardCode, periodStart and periodEnd are required', 400);
   }
 
   const head = await SchedulerHead.create({
-    wardId,
+    wardCode: code,
     periodStart,
     periodEnd,
     note,
@@ -53,7 +54,7 @@ exports.openSchedulerHead = asyncHandler(async (req, res) => {
 
   // ป้องกัน OPEN ซ้อนใน ward เดียวกัน
   const existingOpen = await SchedulerHead.findOne({
-    wardId: head.wardId,
+    wardCode: head.wardCode,
     status: 'OPEN',
   });
 
@@ -108,14 +109,14 @@ exports.closeSchedulerHead = asyncHandler(async (req, res) => {
  * HEAD / ADMIN
  */
 exports.getSchedulerHeads = asyncHandler(async (req, res) => {
-  const { wardId, status } = req.query;
+  const { wardCode, status } = req.query;
+  const code = String(wardCode || '').trim().toUpperCase();
 
   const filter = {};
-  if (wardId) filter.wardId = wardId;
+  if (code) filter.wardCode = code;
   if (status) filter.status = status;
 
   const heads = await SchedulerHead.find(filter)
-    .populate('wardId', 'name code')
     .populate('createdBy', 'name role')
     .sort({ createdAt: -1 });
 
@@ -133,10 +134,11 @@ exports.getSchedulerHeads = asyncHandler(async (req, res) => {
  * ใช้ตอน create / edit schedule
  */
 exports.getActiveSchedulerHeadByWard = asyncHandler(async (req, res) => {
-  const { wardId } = req.params;
+  const { wardCode } = req.params;
+  const code = String(wardCode || '').trim();
 
   const head = await SchedulerHead.findOne({
-    wardId,
+    wardCode: code,
     status: 'OPEN',
   });
 

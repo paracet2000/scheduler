@@ -1,6 +1,6 @@
 /**
  * admin.seed.js
- * Seed admin user with all roles
+ * Seed default users
  * run: node seed/admin.seed.js
  */
 
@@ -8,35 +8,46 @@ require('dotenv').config();
 const mongoose = require('mongoose');
 const User = require('../model/user.model');
 
-const ADMIN_EMAIL = 'admin@admin.com';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Admin123!';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '1234';
+const EMPLOYEES = [
+  { name: 'Admin', email: 'admin@admin.com', employeeCode: '1001', roles: ['user', 'head', 'approver', 'hr', 'finance', 'admin'], meta: { 'Can-use-kpi-tools': 1 } },
+  { name: 'User', email: 'user@user.com', employeeCode: '1002', roles: ['user'], meta: {} },
+  { name: 'Head', email: 'head@head.com', employeeCode: '1003', roles: ['head'], meta: {} }
+];
 
 async function seed() {
   try {
     await mongoose.connect(process.env.MONGODB_URI);
     console.log('✅ MongoDB connected');
 
-    let user = await User.findOne({ email: ADMIN_EMAIL }).select('+password');
-    if (!user) {
-      user = new User({
-        name: 'Admin',
-        email: ADMIN_EMAIL,
-        password: ADMIN_PASSWORD,
-        roles: ['user', 'head', 'approver', 'hr', 'finance', 'admin'],
-        status: 'ACTIVE',
-        emailVerified: true,
-        meta: { 'Can-use-kpi-tools': 1 }
-      });
-      await user.save();
-      console.log('✅ Admin user created');
-    } else {
-      user.name = user.name || 'Admin';
-      user.roles = ['user', 'head', 'approver', 'hr', 'finance', 'admin'];
-      user.status = 'ACTIVE';
-      user.emailVerified = true;
-      user.meta = { ...(user.meta || {}), 'Can-use-kpi-tools': 1 };
-      await user.save();
-      console.log('✅ Admin user updated');
+    for (const emp of EMPLOYEES) {
+      let user = await User.findOne({ email: emp.email }).select('+password');
+      if (!user) {
+        user = new User({
+          name: emp.name,
+          email: emp.email,
+          password: ADMIN_PASSWORD,
+          employeeCode: emp.employeeCode,
+          roles: emp.roles,
+          status: 'ACTIVE',
+          emailVerified: true,
+          meta: emp.meta
+        });
+        await user.save();
+        console.log(`✅ ${emp.email} created`);
+      } else {
+        user.name = emp.name;
+        user.roles = emp.roles;
+        user.employeeCode = emp.employeeCode;
+        user.status = 'ACTIVE';
+        user.emailVerified = true;
+        user.meta = { ...(user.meta || {}), ...(emp.meta || {}) };
+        if (!user.password) {
+          user.password = ADMIN_PASSWORD;
+        }
+        await user.save();
+        console.log(`✅ ${emp.email} updated`);
+      }
     }
 
     process.exit(0);

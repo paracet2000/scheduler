@@ -1,7 +1,8 @@
 const Schedule = require('../model/schedule.model');
 const SchedulerHead = require('../model/scheduler.head.model');
 const WardMember = require('../model/ward-member.model');
-const Master = require('../model/base/master.schema');
+const CodeType = require('../model/configuration.model');
+const { parseConfValue } = require('../utils/config-meta');
 const AppError = require('../helpers/apperror');
 const asyncHandler = require('../helpers/async.handler');
 const response = require('../helpers/response');
@@ -59,12 +60,32 @@ exports.bookSchedule = asyncHandler(async (req, res) => {
 
   // ensure booking window is OPEN for ward
   const wardIds = Array.from(new Set(docs.map(d => String(d.wardId))));
-  const heads = await SchedulerHead.find({ wardId: { $in: wardIds }, status: 'OPEN' })
-    .select('wardId status')
+  const wardDocs = await CodeType.find({ _id: { $in: wardIds } })
+    .select('_id conf_code')
     .lean();
-  const openWardIds = new Set(heads.map(h => String(h.wardId)));
-  const closedWard = wardIds.find(id => !openWardIds.has(String(id)));
-  if (closedWard) {
+  const wardCodeMap = new Map(
+    wardDocs.map(w => [String(w._id), String(w.conf_code || '').trim().toUpperCase()])
+  );
+  const wardCodes = wardIds.map(id => wardCodeMap.get(String(id))).filter(Boolean);
+
+  const heads = await SchedulerHead.find({
+    status: 'OPEN',
+    $or: [
+      { wardCode: { $in: wardCodes } },
+      { wardId: { $in: wardIds } }
+    ]
+  })
+    .select('wardCode wardId status')
+    .lean();
+  const openWardCodes = new Set(heads.map(h => String(h.wardCode || '').toUpperCase()).filter(Boolean));
+  const openWardIds = new Set(heads.map(h => String(h.wardId || '')).filter(Boolean));
+  const closedWardId = wardIds.find(id => {
+    const code = wardCodeMap.get(String(id));
+    if (code && openWardCodes.has(String(code))) return false;
+    if (openWardIds.has(String(id))) return false;
+    return true;
+  });
+  if (closedWardId) {
     throw new AppError('Booking window is not OPEN for this ward', 400);
   }
 
@@ -205,7 +226,17 @@ exports.activateSchedule = asyncHandler(async (req, res) => {
  */
 exports.bookingWindow = asyncHandler(async (req, res) => {
   const { wardId } = req.params;
-  const head = await SchedulerHead.findOne({ wardId });
+  const raw = String(wardId || '').trim();
+  let wardCode = raw;
+  if (/^[a-f0-9]{24}$/i.test(raw)) {
+    const doc = await CodeType.findById(raw).select('conf_code').lean();
+    wardCode = doc?.conf_code ? String(doc.conf_code).trim() : raw;
+  }
+  wardCode = String(wardCode || '').trim().toUpperCase();
+  let head = await SchedulerHead.findOne({ wardCode });
+  if (!head && /^[a-f0-9]{24}$/i.test(raw)) {
+    head = await SchedulerHead.findOne({ wardId: raw });
+  }
 
   if (!head) {
     return response.success(res, { open: false, status: 'NOT_FOUND' }, 'Not opened');
@@ -274,19 +305,19 @@ exports.summaryByWard = asyncHandler(async (req, res) => {
         .lean()
     : [];
 
-  const shifts = await Master.find({ type: 'SHIFT', status: 'ACTIVE' })
-    .select('code meta')
+  const shifts = await CodeType.find({ typ_code: 'SHIFT' })
+    .select('conf_code conf_value options')
     .lean();
 
   const shiftMeta = new Map(
-    shifts.map(s => [String(s.code).toUpperCase(), s.meta || {}])
+    shifts.map(s => [String(s.conf_code || '').toUpperCase(), parseConfValue(s)])
   );
 
   const getBucket = (code) => {
     const upper = String(code || '').toUpperCase();
     const meta = shiftMeta.get(upper) || {};
     const raw = String(
-      meta.bucket || meta.shift || meta.period || meta.group || meta.slot || ''
+      meta.bucket || meta.shift || meta.period || meta.group || meta.slot || meta.value || ''
     ).toLowerCase();
 
     if (['m', 'morning', 'am', 'day'].includes(raw)) return 'morning';
@@ -416,19 +447,19 @@ exports.summaryByWardRange = asyncHandler(async (req, res) => {
         .lean()
     : [];
 
-  const shifts = await Master.find({ type: 'SHIFT', status: 'ACTIVE' })
-    .select('code meta')
+  const shifts = await CodeType.find({ typ_code: 'SHIFT' })
+    .select('conf_code conf_value options')
     .lean();
 
   const shiftMeta = new Map(
-    shifts.map(s => [String(s.code).toUpperCase(), s.meta || {}])
+    shifts.map(s => [String(s.conf_code || '').toUpperCase(), parseConfValue(s)])
   );
 
   const getBucket = (code) => {
     const upper = String(code || '').toUpperCase();
     const meta = shiftMeta.get(upper) || {};
     const raw = String(
-      meta.bucket || meta.shift || meta.period || meta.group || meta.slot || ''
+      meta.bucket || meta.shift || meta.period || meta.group || meta.slot || meta.value || ''
     ).toLowerCase();
 
     if (['m', 'morning', 'am', 'day'].includes(raw)) return 'morning';

@@ -1,6 +1,6 @@
 const UserShiftRate = require('../model/user-shift-rate.model');
 const User = require('../model/user.model');
-const Master = require('../model/base/master.schema');
+const Configuration = require('../model/configuration.model');
 const asyncHandler = require('../helpers/async.handler');
 const AppError = require('../helpers/apperror');
 const response = require('../helpers/response');
@@ -9,10 +9,15 @@ exports.meta = asyncHandler(async (req, res) => {
   const users = await User.find()
     .select('name employeeCode email avatar')
     .sort({ createdAt: -1 });
-  const shifts = await Master.find({ type: 'SHIFT', status: 'ACTIVE' })
-    .select('code name');
+  const shifts = await Configuration.find({ typ_code: 'SHIFT' })
+    .select('conf_code conf_description')
+    .lean();
+  const normalizedShifts = shifts.map(s => ({
+    code: s.conf_code,
+    name: s.conf_description
+  }));
 
-  response.success(res, { users, shifts }, 'Meta loaded');
+  response.success(res, { users, shifts: normalizedShifts }, 'Meta loaded');
 });
 
 exports.list = asyncHandler(async (req, res) => {

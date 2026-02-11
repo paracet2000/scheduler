@@ -8,10 +8,7 @@ const fs = require('fs');
 const path = require('path');
 
 const ensureAdminOrHr = (user) => {
-  const roles = user?.roles || [];
-  if (!roles.includes('admin') && !roles.includes('hr')) {
-    throw new AppError('Forbidden', 403);
-  }
+  // role check removed; access is controlled by menu rights on frontend
 };
 
 /**

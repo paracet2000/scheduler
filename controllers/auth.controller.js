@@ -1,7 +1,8 @@
 // controllers/auth.controller.js
 const User = require('../model/user.model');
-const Master = require('../model/base/master.schema');
+const Configuration = require('../model/configuration.model');
 const WardMember = require('../model/ward-member.model');
+const MenuAuthorize = require('../model/menu.authorize.model');
 const asyncHandler = require('../helpers/async.handler');
 const response = require('../helpers/response');
 const AppError = require('../helpers/apperror');
@@ -43,15 +44,13 @@ exports.register = asyncHandler(async (req, res) => {
 
   // Ensure TEMP_WARD exists, then assign new user as ward member
   const tempWardCode = 'TEMP_WARD';
-  let tempWard = await Master.findOne({ type: 'WARD', code: tempWardCode });
+  let tempWard = await Configuration.findOne({ typ_code: 'DEPT', conf_code: tempWardCode });
   if (!tempWard) {
-    tempWard = await Master.create({
-      code: tempWardCode,
-      name: 'Temporary Ward',
-      description: 'Temporary ward for newly registered users',
-      type: 'WARD',
-      status: 'ACTIVE',
-      meta: { group: 'TEMP' }
+    tempWard = await Configuration.create({
+      typ_code: 'DEPT',
+      conf_code: tempWardCode,
+      conf_description: 'Temporary Ward',
+      conf_value: JSON.stringify({ group: 'TEMP', note: 'Temporary ward for newly registered users' })
     });
   }
 
@@ -66,6 +65,34 @@ exports.register = asyncHandler(async (req, res) => {
     },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
+
+  // Default menu permissions for new users
+  const defaultMenus = [
+    '07menuSettingsPersonal',
+    '17menuSchedule',
+    '22menuChangeRequest',
+    '27menuScheduleSummary',
+    '32menuKpiEntry',
+    '99menuLogout'
+  ];
+  if (defaultMenus.length) {
+    const ops = defaultMenus.map((code) => ({
+      updateOne: {
+        filter: { userId: user._id, mnu_code: code },
+        update: {
+          $set: {
+            userId: user._id,
+            mnu_code: code,
+            acc_read: 1,
+            acc_write: 0,
+            acc_export: 0
+          }
+        },
+        upsert: true
+      }
+    }));
+    await MenuAuthorize.bulkWrite(ops, { ordered: false });
+  }
 
   const verifyLink = `${process.env.CLIENT_URL}/verify/${verifyToken}`;
   await mail.sendVerifyEmail(user.email, verifyLink);
@@ -151,4 +178,21 @@ exports.resendVerifyEmail = asyncHandler(async (req, res) => {
   await mail.sendVerifyEmail(user.email, verifyLink);
 
   response.success(res, null, 'Verification email resent');
+});
+
+/* ---------- verify password ---------- */
+/**
+ * @desc    Verify current password
+ * @route   POST /api/auth/verify-password
+ */
+exports.verifyPassword = asyncHandler(async (req, res) => {
+  const { password } = req.body || {};
+  if (!password) {
+    throw new AppError('Password is required', 400);
+  }
+  const user = await User.findById(req.user._id).select('+password');
+  if (!user) throw new AppError('User not found', 404);
+
+  const isMatch = await user.comparePassword(password);
+  response.success(res, { valid: !!isMatch }, 'Verify password success');
 });

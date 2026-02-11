@@ -5,26 +5,12 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
         window.showPage('settingsSystem');
     }
 
-    const roles = typeof window.getStoredRoles === 'function' ? window.getStoredRoles() : [];
-    const isHead = roles.includes('head');
-    const isAdmin = roles.includes('admin');
-    const isFinance = roles.includes('finance');
+    const isHead = Helper.checkRole('head');
+    const isAdmin = Helper.checkRole('admin');
+    const isFinance = Helper.checkRole('finance');
 
     $('#systemSettings').empty();
 
-    if (!isHead && !isAdmin) {
-        $('#systemSettings').append(
-            $('<div>', {
-                class: 'settings-placeholder',
-                text: 'Schedule summary is available for head/admin only.'
-            })
-        );
-        return;
-    }
-
-    const token = localStorage.getItem('auth_token');
-    const authHeaders = () => (token ? { Authorization: `Bearer ${token}` } : {});
-    const apiBase = window.BASE_URL || '';
     const initialFilters = options.filters || {};
 
     const filters = $('<div>', { class: 'summary-filters' });
@@ -54,9 +40,9 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
 
     try {
         const [wardRes, posRes, shiftRes] = await Promise.all([
-            fetch(`${apiBase}/api/ward-members/mine`, { headers: authHeaders() }),
-            fetch(`${apiBase}/api/masters/POSITION`, { headers: authHeaders() }),
-            fetch(`${apiBase}/api/masters/SHIFT`, { headers: authHeaders() })
+            Common.fetchWithAuth('/api/ward-members/mine'),
+            Common.fetchWithAuth('/api/configuration?typ_code=POST'),
+            Common.fetchWithAuth('/api/configuration?typ_code=SHIFT')
         ]);
         const wardJson = await wardRes.json();
         const posJson = await posRes.json();
@@ -66,13 +52,31 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
         if (!shiftRes.ok) throw new Error(shiftJson.message || 'Failed to load shifts');
         wards = Array.isArray(wardJson.data) ? wardJson.data : [];
         positions = Array.isArray(posJson.data) ? posJson.data : [];
+        positions = positions.map(p => ({
+            code: p.code || p.conf_code || '',
+            name: p.name || p.conf_description || p.conf_code || ''
+        })).filter(p => p.code);
+
         const shifts = Array.isArray(shiftJson.data) ? shiftJson.data : [];
-        shiftMeta = new Map(shifts.map(s => [String(s.code).toUpperCase(), s.meta || {}]));
+        const parseMeta = (s) => {
+            if (!s) return {};
+            const raw = String(s.conf_value || '').trim();
+            if (!raw) return s.meta || {};
+            try {
+                return JSON.parse(raw);
+            } catch {
+                return { value: raw };
+            }
+        };
+        shiftMeta = new Map(shifts.map(s => [String(s.code || s.conf_code || '').toUpperCase(), parseMeta(s)]).filter(([code]) => code));
         shiftRateMap = new Map(
-            shifts.map(s => [
-                String(s.code).toUpperCase(),
-                Number(s.meta?.rate ?? s.meta?.amount ?? s.meta?.price ?? 0)
-            ])
+            shifts.map(s => {
+                const meta = parseMeta(s);
+                return [
+                    String(s.code || s.conf_code || '').toUpperCase(),
+                    Number(meta?.rate ?? meta?.amount ?? meta?.price ?? 0)
+                ];
+            }).filter(([code]) => code)
         );
     } catch (err) {
         tableWrap.append(
@@ -458,9 +462,8 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
         const normalizedPos = Array.isArray(posVal) ? posVal.filter(v => v && v !== '(All)') : [];
         const posQuery = normalizedPos.length ? `&positions=${normalizedPos.join(',')}` : '';
 
-        const res = await fetch(
-            `${apiBase}/api/schedules/summary/${wardId}?month=${monthVal}&year=${yearVal}${posQuery}`,
-            { headers: authHeaders() }
+        const res = await Common.fetchWithAuth(
+            `/api/schedules/summary/${wardId}?month=${monthVal}&year=${yearVal}${posQuery}`
         );
         const json = await res.json();
         if (DEBUG_SUMMARY) console.log('[summary] data', json);
@@ -471,7 +474,7 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
         const userIds = (json.data?.rows || []).map(r => r.userId).filter(Boolean);
         if (userIds.length) {
             if (DEBUG_SUMMARY) console.log('[summary] rateMap query userIds', userIds);
-            const rateRes = await fetch(`${apiBase}/api/user-shift-rates?userIds=${userIds.join(',')}`, { headers: authHeaders() });
+            const rateRes = await Common.fetchWithAuth(`/api/user-shift-rates?userIds=${userIds.join(',')}`);
             const rateJson = await rateRes.json();
             if (rateRes.ok) {
                 const rates = Array.isArray(rateJson.data) ? rateJson.data : [];
@@ -533,7 +536,11 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
     const buildPrintHtml = () => {
         const table = tableWrap.find('table').prop('outerHTML');
         const wardId = wardInstance ? wardInstance.option('value') : null;
-        const wardName = wardId ? (wards.find(w => w._id === wardId)?.name || '') : '';
+        const wardName = wardId
+            ? (wards.find(w => w._id === wardId)?.conf_description
+                || wards.find(w => w._id === wardId)?.name
+                || '')
+            : '';
         const monthLabelText = monthLabel.text() || '';
         const docCode = `frm${String(wardName || 'schedule').replace(/\s+/g, '').toLowerCase()}`;
         const docDate = formatDateShort(new Date());
@@ -608,7 +615,7 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
     const updateChangeBadge = async () => {
         const wardId = wardInstance ? wardInstance.option('value') : null;
         const wardQuery = wardId ? `&wardId=${wardId}` : '';
-        const res = await fetch(`${apiBase}/api/changes?status=OPEN${wardQuery}`, { headers: authHeaders() });
+        const res = await Common.fetchWithAuth(`/api/changes?status=OPEN${wardQuery}`);
         const json = await res.json();
         if (!res.ok) return;
         const list = Array.isArray(json.data) ? json.data : [];
@@ -629,7 +636,7 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
                 return;
             }
 
-            const res = await fetch(`${apiBase}/api/changes?status=OPEN&wardId=${wardId}`, { headers: authHeaders() });
+            const res = await Common.fetchWithAuth(`/api/changes?status=OPEN&wardId=${wardId}`);
             const json = await res.json();
             if (!res.ok) {
                 DevExpress.ui.notify(json.message || 'Load change list failed', 'error', 3000);
@@ -638,14 +645,15 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
 
             const list = Array.isArray(json.data) ? json.data : [];
 
-            const popup = $('<div>').appendTo('body').dxPopup({
+            const popupEl = $('<div>').appendTo('body');
+            const popup = popupEl.dxPopup({
                 title: 'Change Requests (Pending)',
                 width: '80%',
                 height: 520,
                 showCloseButton: true,
                 visible: true,
                 contentTemplate: (contentEl) => {
-                    const gridEl = $('<div>').appendTo(contentEl);
+                    const gridEl = $('<div>', { id: 'changeRequestGrid', class: 'dx-grid change-request-grid' }).appendTo(contentEl);
                     gridEl.dxDataGrid({
                         dataSource: list,
                         keyExpr: '_id',
@@ -677,10 +685,7 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
                                     const rejectBtn = $('<button>', { class: 'dx-button dx-button-mode-contained dx-button-danger', text: 'Reject' });
 
                                     approveBtn.on('click', async () => {
-                                        const res = await fetch(`${apiBase}/api/changes/${options.data._id}/approve`, {
-                                            method: 'PATCH',
-                                            headers: authHeaders()
-                                        });
+                                        const res = await Common.patchWithAuth(`/api/changes/${options.data._id}/approve`);
                                         const json = await res.json();
                                         if (!res.ok) {
                                             DevExpress.ui.notify(json.message || 'Approve failed', 'error', 3000);
@@ -693,9 +698,7 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
                                     });
 
                                     rejectBtn.on('click', async () => {
-                                        const res = await fetch(`${apiBase}/api/changes/${options.data._id}/reject`, {
-                                            method: 'PATCH',
-                                            headers: { 'Content-Type': 'application/json', ...authHeaders() },
+                                        const res = await Common.patchWithAuth(`/api/changes/${options.data._id}/reject`, {
                                             body: JSON.stringify({ reason: 'Rejected by head' })
                                         });
                                         const json = await res.json();

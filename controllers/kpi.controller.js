@@ -3,7 +3,7 @@ const KpiDefinition = require('../model/kpi-definition.model');
 const KpiEntry = require('../model/kpi-entry.model');
 const KpiDashboardWidget = require('../model/kpi-dashboard-widget.model');
 const KpiThreshold = require('../model/kpi-threshold.model');
-const Master = require('../model/base/master.schema');
+const Configuration = require('../model/configuration.model');
 const asyncHandler = require('../helpers/async.handler');
 const AppError = require('../helpers/apperror');
 const response = require('../helpers/response');
@@ -233,7 +233,13 @@ exports.createDashboardWidget = asyncHandler(async (req, res) => {
     sourceCodes: normalizeCodes(req.body.sourceCodes),
     numeratorCodes: normalizeCodes(req.body.numeratorCodes),
     denominatorCodes: normalizeCodes(req.body.denominatorCodes),
+    numeratorMode: req.body.numeratorMode || 'sum',
+    denominatorMode: req.body.denominatorMode || 'sum',
+    numeratorValue: req.body.numeratorValue ?? null,
+    denominatorValue: req.body.denominatorValue ?? null,
     roles: Array.isArray(req.body.roles) ? req.body.roles : [],
+    curveWidth: req.body.curveWidth !== undefined ? Number(req.body.curveWidth) : 30,
+    gradient: req.body.gradient !== undefined ? !!req.body.gradient : false,
     createdBy: req.user?._id || null
   };
   if (!payload.code || !payload.title) {
@@ -254,7 +260,13 @@ exports.updateDashboardWidget = asyncHandler(async (req, res) => {
   if (body.sourceCodes !== undefined) doc.sourceCodes = normalizeCodes(body.sourceCodes);
   if (body.numeratorCodes !== undefined) doc.numeratorCodes = normalizeCodes(body.numeratorCodes);
   if (body.denominatorCodes !== undefined) doc.denominatorCodes = normalizeCodes(body.denominatorCodes);
+  if (body.numeratorMode !== undefined) doc.numeratorMode = body.numeratorMode;
+  if (body.denominatorMode !== undefined) doc.denominatorMode = body.denominatorMode;
+  if (body.numeratorValue !== undefined) doc.numeratorValue = body.numeratorValue;
+  if (body.denominatorValue !== undefined) doc.denominatorValue = body.denominatorValue;
   if (body.unit !== undefined) doc.unit = body.unit;
+  if (body.curveWidth !== undefined) doc.curveWidth = Number(body.curveWidth);
+  if (body.gradient !== undefined) doc.gradient = !!body.gradient;
   if (body.roles !== undefined) doc.roles = Array.isArray(body.roles) ? body.roles : [];
   if (body.order !== undefined) doc.order = Number(body.order || 0);
   if (body.status) doc.status = body.status;
@@ -355,8 +367,18 @@ exports.dashboardSummary = asyncHandler(async (req, res) => {
     if (w.calc === 'count') {
       value = entries.length;
     } else if (w.calc === 'ratio') {
-      const num = sumCodes(numerator.length ? numerator : source);
-      const den = sumCodes(denominator);
+      const numMode = String(w.numeratorMode || 'sum').toLowerCase();
+      const denMode = String(w.denominatorMode || 'sum').toLowerCase();
+      const num = numMode === 'absolute'
+        ? Number(w.numeratorValue || 0)
+        : numMode === 'count'
+          ? entries.length
+          : sumCodes(numerator.length ? numerator : source);
+      const den = denMode === 'absolute'
+        ? Number(w.denominatorValue || 0)
+        : denMode === 'count'
+          ? entries.length
+          : sumCodes(denominator);
       value = den ? num / den : 0;
     } else if (w.calc === 'avg') {
       const total = sumCodes(source);
@@ -378,6 +400,12 @@ exports.dashboardSummary = asyncHandler(async (req, res) => {
       title: w.title,
       description: w.description,
       unit: w.unit,
+      curveWidth: w.curveWidth ?? 30,
+      gradient: !!w.gradient,
+      numeratorMode: w.numeratorMode || 'sum',
+      denominatorMode: w.denominatorMode || 'sum',
+      numeratorValue: w.numeratorValue ?? null,
+      denominatorValue: w.denominatorValue ?? null,
       value,
       status,
       icon: w.meta?.icon || '',
@@ -411,13 +439,19 @@ exports.dashboardChecklist = asyncHandler(async (req, res) => {
   let wardList = [];
   if (wardId) {
     const ids = toObjectIds(wardId);
-    wardList = await Master.find({ _id: { $in: ids }, type: 'WARD' }).select('_id name code').lean();
+    wardList = await Configuration.find({ _id: { $in: ids }, typ_code: 'DEPT' })
+      .select('_id conf_description conf_code')
+      .lean();
   } else if (wardIds) {
     const list = String(wardIds).split(',').map(v => v.trim()).filter(Boolean);
     const ids = toObjectIds(list);
-    wardList = await Master.find({ _id: { $in: ids }, type: 'WARD' }).select('_id name code').lean();
+    wardList = await Configuration.find({ _id: { $in: ids }, typ_code: 'DEPT' })
+      .select('_id conf_description conf_code')
+      .lean();
   } else {
-    wardList = await Master.find({ type: 'WARD', status: 'ACTIVE' }).select('_id name code').lean();
+    wardList = await Configuration.find({ typ_code: 'DEPT' })
+      .select('_id conf_description conf_code')
+      .lean();
   }
 
   const rawList = shiftCode
@@ -460,8 +494,8 @@ exports.dashboardChecklist = asyncHandler(async (req, res) => {
     else if (percent >= 26) status = 'amber';
     return {
       wardId: w._id,
-      wardName: w.name,
-      wardCode: w.code,
+      wardName: w.conf_description,
+      wardCode: w.conf_code,
       days,
       shifts: shiftCount,
       totalExpected,

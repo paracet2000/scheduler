@@ -3,7 +3,7 @@ const mongoose = require('mongoose')
 const bcrypt = require('bcryptjs')
 
 const userSchema = new mongoose.Schema({
-  employeeCode: {
+  empcode: {
     type: String,
     index: true
   },
@@ -28,6 +28,11 @@ const userSchema = new mongoose.Schema({
 
   phone: {
     type: String
+  },
+
+  department: {
+    type: [String],
+    default: []
   },
 
   avatar: String,

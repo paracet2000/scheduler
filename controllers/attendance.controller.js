@@ -1,5 +1,6 @@
 const Schedule = require('../model/schedule.model');
-const Master = require('../model/base/master.schema');
+const Configuration = require('../model/configuration.model');
+const { parseConfValue } = require('../utils/config-meta');
 const asyncHandler = require('../helpers/async.handler');
 const AppError = require('../helpers/apperror');
 const response = require('../helpers/response');
@@ -45,11 +46,11 @@ exports.sync = asyncHandler(async (req, res) => {
       }
 
       const shiftCodes = Array.from(new Set(schedules.map(s => String(s.shiftCode || '').toUpperCase())));
-      const shifts = await Master.find({ type: 'SHIFT', code: { $in: shiftCodes } })
-        .select('code meta')
+      const shifts = await Configuration.find({ typ_code: 'SHIFT', conf_code: { $in: shiftCodes } })
+        .select('conf_code conf_value options')
         .lean();
       const shiftMap = new Map(
-        shifts.map(s => [String(s.code).toUpperCase(), s.meta || {}])
+        shifts.map(s => [String(s.conf_code).toUpperCase(), parseConfValue(s)])
       );
 
       const punchSec = timeToSeconds(singleTime);
@@ -106,11 +107,11 @@ exports.sync = asyncHandler(async (req, res) => {
 
     if (schedules.length > 1) {
       const shiftCodes = Array.from(new Set(schedules.map(s => String(s.shiftCode || '').toUpperCase())));
-      const shifts = await Master.find({ type: 'SHIFT', code: { $in: shiftCodes } })
-        .select('code meta')
+      const shifts = await Configuration.find({ typ_code: 'SHIFT', conf_code: { $in: shiftCodes } })
+        .select('conf_code conf_value options')
         .lean();
       const shiftMap = new Map(
-        shifts.map(s => [String(s.code).toUpperCase(), s.meta || {}])
+        shifts.map(s => [String(s.conf_code).toUpperCase(), parseConfValue(s)])
       );
 
       const inSec = timeToSeconds(actualIn);

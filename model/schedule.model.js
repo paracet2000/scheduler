@@ -8,7 +8,7 @@ const scheduleSchema = new mongoose.Schema(
      */
     wardId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Master',
+      ref: 'CodeType',
       required: true
     },
 

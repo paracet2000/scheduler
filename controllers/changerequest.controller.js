@@ -1,7 +1,8 @@
 const ChangeRequest = require('../model/changerequest.model');
 const Schedule = require('../model/schedule.model');
 const WardMember = require('../model/ward-member.model');
-const Master = require('../model/base/master.schema');
+const Configuration = require('../model/configuration.model');
+const { parseConfValue } = require('../utils/config-meta');
 const mail = require('../helpers/mail.helper');
 const notify = require('../helpers/notify.helper');
 const AppError = require('../helpers/apperror');
@@ -105,12 +106,21 @@ exports.create = async (req, res, next) => {
       if (type === 'CHANGE' && wardId) {
         // find same position + ward group
         const myWard = await WardMember.findOne({ userId, wardId, status: 'ACTIVE' });
-        const ward = await Master.findById(wardId).select('meta');
-        const group = ward?.meta?.group || null;
+        const ward = await Configuration.findById(wardId).select('conf_value options').lean();
+        const wardMeta = parseConfValue(ward);
+        const group = wardMeta.group || wardMeta.wardGroup || wardMeta.value || null;
         let wardIds = [wardId];
         if (group) {
-          const sameGroup = await Master.find({ type: 'WARD', 'meta.group': group }).select('_id').lean();
-          wardIds = sameGroup.map(w => w._id);
+          const sameGroup = await Configuration.find({ typ_code: 'DEPT' })
+            .select('_id conf_value options')
+            .lean();
+          wardIds = sameGroup
+            .filter(w => {
+              const meta = parseConfValue(w);
+              const g = meta.group || meta.wardGroup || meta.value || null;
+              return g && String(g) === String(group);
+            })
+            .map(w => w._id);
         }
 
         const query = { wardId: { $in: wardIds }, status: 'ACTIVE' };

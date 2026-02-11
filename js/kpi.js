@@ -5,21 +5,9 @@ window.renderKpiEntry = async function renderKpiEntry() {
         window.showPage('kpiEntry');
     }
 
-    const roles = typeof window.getStoredRoles === 'function' ? window.getStoredRoles() : [];
-    const isHead = roles.includes('head');
-    const isAdmin = roles.includes('admin');
-
     const container = $('#kpiEntryForm');
     container.empty();
 
-    if (!isHead && !isAdmin) {
-        container.append($('<div>', { class: 'settings-placeholder', text: 'KPI entry is available for head/admin only.' }));
-        return;
-    }
-
-    const apiBase = window.BASE_URL || '';
-    const token = localStorage.getItem('auth_token');
-    const authHeaders = () => (token ? { Authorization: `Bearer ${token}` } : {});
 
     let wards = [];
     let shifts = [];
@@ -27,9 +15,8 @@ window.renderKpiEntry = async function renderKpiEntry() {
 
     try {
         const [wardRes, defRes] = await Promise.all([
-            fetch(`${apiBase}/api/ward-members/mine`, { headers: authHeaders() }),
-           
-            fetch(`${apiBase}/api/kpi/definitions?status=ACTIVE`, { headers: authHeaders() })
+            Common.fetchWithAuth('/api/ward-members/mine'),
+            Common.fetchWithAuth('/api/kpi/definitions?status=ACTIVE')
         ]);
         const wardJson = await wardRes.json();
         
@@ -38,11 +25,22 @@ window.renderKpiEntry = async function renderKpiEntry() {
         
         if (!defRes.ok) throw new Error(defJson.message || 'Failed to load KPI definitions');
         wards = Array.isArray(wardJson.data) ? wardJson.data : [];
-        shifts = [
-            { code: 'M', desc: 'Morning' },
-            { code: 'A', desc: 'Afternoon' },
-            { code: 'N', desc: 'Night' }
-        ]; // Fixed shifts
+        try {
+            const shiftItems = await Helper.getShifts();
+            shifts = (Array.isArray(shiftItems) ? shiftItems : []).map(s => ({
+                code: s.conf_code || s.code,
+                desc: s.conf_description || s.name || s.conf_code || s.code
+            })).filter(s => s.code);
+        } catch {
+            shifts = [];
+        }
+        if (!shifts.length) {
+            shifts = [
+                { code: 'M', desc: 'Morning' },
+                { code: 'A', desc: 'Afternoon' },
+                { code: 'N', desc: 'Night' }
+            ];
+        }
         definitions = Array.isArray(defJson.data) ? defJson.data : [];
     } catch (err) {
         container.append($('<div>', { class: 'settings-placeholder', text: err.message || 'Unable to load KPI meta.' }));
@@ -160,7 +158,7 @@ window.renderKpiEntry = async function renderKpiEntry() {
     let lastLoadKey = '';
     let loadTimer = null;
     const applyEntryValues = (values) => {
-        const form = $('#kpiEntryDxForm').dxForm('instance');
+        const form = $('#kpiEntryData').dxForm('instance');
         if (!form) return;
         isLoadingEntry = true;
         const nextData = { ...form.option('formData'), values: values || {} };
@@ -176,9 +174,7 @@ window.renderKpiEntry = async function renderKpiEntry() {
         if (key === lastLoadKey) return;
         lastLoadKey = key;
         try {
-            const res = await fetch(`${apiBase}/api/kpi/entries?wardId=${wardId}&shiftCode=${shiftCode}&date=${dateStr}`, {
-                headers: authHeaders()
-            });
+            const res = await Common.fetchWithAuth(`/api/kpi/entries?wardId=${wardId}&shiftCode=${shiftCode}&date=${dateStr}`);
             const json = await res.json();
             if (!res.ok) throw new Error(json.message || 'Load entry failed');
             const entry = json.data;
@@ -189,16 +185,21 @@ window.renderKpiEntry = async function renderKpiEntry() {
         }
     };
 
-    container.append('<div id="kpiEntryDxForm"></div>');
+    container.append('<div class="kpi-entry-header"></div>');
+    container.append('<div class="kpi-entry-data"></div>');
     const saveKpi = async () => {
-        const instance = $('#kpiEntryDxForm').dxForm('instance');
-        const result = instance.validate(); 
+        const headerForm = $('#kpiEntryHeader').dxForm('instance');
+        const dataForm = $('#kpiEntryData').dxForm('instance');
+        const headerResult = headerForm.validate();
+        const dataResult = dataForm.validate();
               
-        if (!result.isValid) {
+        if (!headerResult.isValid || !dataResult.isValid) {
             DevExpress.ui.notify('Please complete required fields.', 'warning', 2000);
             return;
         }
-        const data = instance.option('formData');
+        const headerData = headerForm.option('formData');
+        const dataData = dataForm.option('formData');
+        const data = { ...headerData, values: dataData.values || {} };
         console.log('Saving KPI Data: ',data); //correct data
         if (!data.wardId || !data.shiftCode || !data.date) {
             DevExpress.ui.notify('Ward, Shift, and Date are required.', 'warning', 2000);
@@ -206,12 +207,7 @@ window.renderKpiEntry = async function renderKpiEntry() {
         }
         // save to server
         try {
-            const res = await fetch(`${apiBase}/api/kpi/entries`, { 
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',     
-                    ...authHeaders()
-                },
+            const res = await Common.postWithAuth('/api/kpi/entries', {
                 body: JSON.stringify(data)
             });
             const resJson = await res.json();
@@ -223,7 +219,12 @@ window.renderKpiEntry = async function renderKpiEntry() {
         }
     };
     
-    const form = $('#kpiEntryDxForm').dxForm({
+    const headerForm = $('<div id="kpiEntryHeader"></div>');
+    const dataForm = $('<div id="kpiEntryData"></div>');
+    $('.kpi-entry-header').append(headerForm);
+    $('.kpi-entry-data').append(dataForm);
+
+    const headerFormInstance = headerForm.dxForm({
         formData,
         colCount: 3,
         showValidationSummary: true,
@@ -235,7 +236,7 @@ window.renderKpiEntry = async function renderKpiEntry() {
                 const evt = args.event;
                 if (!evt || evt.key !== 'Enter') return;
                 evt.preventDefault();
-                const $form = $('#kpiEntryDxForm');
+                const $form = headerForm;
                 const $inputs = $form.find('input, textarea, select, .dx-texteditor-input')
                     .filter(':visible')
                     .filter(function () {
@@ -257,7 +258,7 @@ window.renderKpiEntry = async function renderKpiEntry() {
                     displayExpr: 'name',
                     valueExpr: '_id',
                     onBlur: () => {
-                        const data = form.option('formData');
+                        const data = headerFormInstance.option('formData');
                         loadEntry(data.wardId, data.shiftCode, data.date);
                     }
                 },
@@ -273,7 +274,7 @@ window.renderKpiEntry = async function renderKpiEntry() {
                     displayExpr: 'code',
                     valueExpr: 'code',
                     onBlur: () => {
-                        const data = form.option('formData');
+                        const data = headerFormInstance.option('formData');
                         loadEntry(data.wardId, data.shiftCode, data.date);
                     }
                 },
@@ -287,38 +288,45 @@ window.renderKpiEntry = async function renderKpiEntry() {
                 editorOptions: {
                     displayFormat: 'dd/MM/yyyy',
                     onBlur: () => {
-                        const data = form.option('formData');
+                        const data = headerFormInstance.option('formData');
                         loadEntry(data.wardId, data.shiftCode, data.date);
                     }
                 },
                 colSpan: 1,
                 validationRules: [{ type: 'required' }]
-            },
+            }
+        ]
+    }).dxForm('instance');
+
+    dataForm.dxForm({
+        formData: { values: {} },
+        colCount: 1,
+        showValidationSummary: true,
+        items: [
             {
                 itemType: 'group',
-                colSpan: 3,
-                colCount: 2,
+                colCount: 1,
                 caption: '',
                 items: buildDynamicItems()
             },
             {
                 itemType: 'button',
-                colSpan: 3,
+                colSpan: 1,
                 horizontalAlignment: 'left',
                 buttonOptions: {
-                    text: 'ส่งข้อมูล',
+                    text: 'Save',
                     type: 'success',
                     onClick: saveKpi
                 }
             }
         ]
     }).dxForm('instance');
+
     // Enter-to-next field (fallback for editors that don't trigger onKeyDown)
     container.off('keydown.kpiEnter').on('keydown.kpiEnter', '.dx-texteditor-input, textarea, input', function (e) {
         if (e.key !== 'Enter') return;
         e.preventDefault();
-        const $form = $('#kpiEntryDxForm');
-        const $inputs = $form.find('.dx-texteditor-input, textarea, input')
+        const $inputs = container.find('.dx-texteditor-input, textarea, input')
             .filter(':visible')
             .filter(function () {
                 return !$(this).prop('disabled') && !$(this).attr('readonly');

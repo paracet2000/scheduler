@@ -36,7 +36,7 @@ app.use(express.static(path.resolve(__dirname)));
  * ========================= */
 app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/users', require('./routes/user.routes'));
-app.use('/api/masters', require('./routes/master.routes'));
+app.use('/api/configuration', require('./routes/configuration.routes'));
 app.use('/api/master-types', require('./routes/mastertype.routes'));
 app.use('/api/master-patterns', require('./routes/masterpattern.routes'));
 app.use('/api/ward-members', require('./routes/wardmember.routes'));
@@ -44,9 +44,12 @@ app.use('/api/code-mappings', require('./routes/codemapping.routes'));
 app.use('/api/user-shift-rates', require('./routes/user-shift-rate.routes'));
 app.use('/api/attendance', require('./routes/attendance.routes'));
 app.use('/api/kpi', require('./routes/kpi.routes'));
+app.use('/api/kpi-definitions', require('./routes/kpi.definition.routes'));
 app.use('/api/schedules', require('./routes/schedule.routes'));
 app.use('/api/scheduler-heads', require('./routes/scheduler.head.router'));
 app.use('/api/changes', require('./routes/changerequest.routes'));
+app.use('/api/menus', require('./routes/menu.routes'));
+app.use('/api/menu-authorize', require('./routes/menu.authorize.routes'));
 
 /* =========================
  * Frontend (index.html)

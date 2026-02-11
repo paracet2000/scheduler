@@ -5,10 +5,6 @@ window.renderSchedule = async function renderSchedule(options = {}) {
         window.showPage('schedule');
     }
 
-    const apiBase = window.BASE_URL || '';
-    const token = localStorage.getItem('auth_token');
-    const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
-
     const scheduleEl = $('#personalScheduler');
     scheduleEl.empty();
 
@@ -45,18 +41,18 @@ window.renderSchedule = async function renderSchedule(options = {}) {
         const year = date.getFullYear();
         if (editUserId) {
             const wardQuery = editWardId ? `&wardId=${editWardId}` : '';
-            return fetch(`${apiBase}/api/schedules/user/${editUserId}?month=${month}&year=${year}${wardQuery}`, { headers: authHeaders });
+            return Common.fetchWithAuth(`/api/schedules/user/${editUserId}?month=${month}&year=${year}${wardQuery}`);
         }
-        return fetch(`${apiBase}/api/schedules/my`, { headers: authHeaders });
+        return Common.fetchWithAuth('/api/schedules/my');
     };
 
     const [wardRes, shiftRes, myRes, patternRes, meRes, inboxRes] = await Promise.all([
-        fetch(`${apiBase}/api/ward-members/mine`, { headers: authHeaders }),
-        fetch(`${apiBase}/api/masters/SHIFT`, { headers: authHeaders }),
+        Common.fetchWithAuth('/api/ward-members/mine'),
+        Common.fetchWithAuth('/api/configuration?typ_code=SHIFT'),
         loadSchedules(selectedDate),
-        fetch(`${apiBase}/api/master-patterns`, { headers: authHeaders }),
-        fetch(`${apiBase}/api/users/me`, { headers: authHeaders }),
-        fetch(`${apiBase}/api/changes/inbox?status=OPEN`, { headers: authHeaders })
+        Common.fetchWithAuth('/api/master-patterns'),
+        Common.fetchWithAuth('/api/users/me'),
+        Common.fetchWithAuth('/api/changes/inbox?status=OPEN')
     ]);
 
     const wardJson = await wardRes.json();
@@ -96,7 +92,8 @@ window.renderSchedule = async function renderSchedule(options = {}) {
         editBanner.empty().append(avatarEl, title).show();
     }
 
-    const shiftCodes = shifts.map(s => s.code);
+    const shiftCodes = shifts.map(s => s.code || s.conf_code || '').filter(Boolean);
+    const normalizeShiftCode = (code) => String(code || '').trim().toUpperCase();
     const scheduleMap = new Map();
     const scheduleMetaMap = new Map();
     const scheduleMetaByDateCode = new Map();
@@ -111,24 +108,35 @@ window.renderSchedule = async function renderSchedule(options = {}) {
             }
         });
     });
-    const shiftMetaByCode = new Map(shifts.map(s => [String(s.code).toUpperCase(), s.meta || {}]));
+    const shiftMetaByCode = new Map(
+        shifts.map(s => [normalizeShiftCode(s.code || s.conf_code || ''), s.meta || {}])
+            .filter(([code]) => code)
+    );
     const getKey = (date, wardId) => `${new Date(date).toDateString()}|${wardId || 'ALL'}`;
 
-    schedules.forEach(s => {
-        const wardId = String(s.wardId?._id || s.wardId);
-        const key = getKey(s.workDate, wardId);
-        if (!scheduleMap.has(key)) scheduleMap.set(key, []);
-        scheduleMap.get(key).push(s.shiftCode);
-        if (!scheduleItemMap.has(key)) scheduleItemMap.set(key, []);
-        scheduleItemMap.get(key).push({ id: String(s._id), code: s.shiftCode, meta: s.meta || {} });
-        const dateKey = new Date(s.workDate).toDateString();
-        const metaKey = `${dateKey}|${wardId}|${String(s.shiftCode).toUpperCase()}`;
-        scheduleMetaMap.set(metaKey, s.meta || {});
-        const aggKey = `${dateKey}|${String(s.shiftCode).toUpperCase()}`;
-        if (s.meta?.changeStatus === 'OPEN') {
-            scheduleMetaByDateCode.set(aggKey, { changeStatus: 'OPEN' });
-        }
-    });
+    const rebuildScheduleMaps = (list) => {
+        scheduleMap.clear();
+        scheduleMetaMap.clear();
+        scheduleMetaByDateCode.clear();
+        scheduleItemMap.clear();
+        list.forEach(s => {
+            const wardId = String(s.wardId?._id || s.wardId);
+            const key = getKey(s.workDate, wardId);
+            if (!scheduleMap.has(key)) scheduleMap.set(key, []);
+            scheduleMap.get(key).push(normalizeShiftCode(s.shiftCode));
+            if (!scheduleItemMap.has(key)) scheduleItemMap.set(key, []);
+            scheduleItemMap.get(key).push({ id: String(s._id), code: normalizeShiftCode(s.shiftCode), meta: s.meta || {} });
+            const dateKey = new Date(s.workDate).toDateString();
+            const metaKey = `${dateKey}|${wardId}|${normalizeShiftCode(s.shiftCode)}`;
+            scheduleMetaMap.set(metaKey, s.meta || {});
+            const aggKey = `${dateKey}|${normalizeShiftCode(s.shiftCode)}`;
+            if (s.meta?.changeStatus === 'OPEN') {
+                scheduleMetaByDateCode.set(aggKey, { changeStatus: 'OPEN' });
+            }
+        });
+    };
+
+    rebuildScheduleMaps(schedules);
 
     const wardItems = [...wards];
     if (editWardId && !wardItems.some(w => String(w._id) === String(editWardId))) {
@@ -140,6 +148,11 @@ window.renderSchedule = async function renderSchedule(options = {}) {
     let patternFilterInstance;
     let bookingOpen = false;
 
+    const getWardCodeById = (id) => {
+        const ward = wardItems.find(w => String(w._id) === String(id));
+        return ward?.code || ward?.conf_code || '';
+    };
+
     const checkBookingWindow = async () => {
         const wardId = wardFilterInstance ? wardFilterInstance.option('value') : null;
         if (!wardId) {
@@ -148,10 +161,11 @@ window.renderSchedule = async function renderSchedule(options = {}) {
             return;
         }
 
-        const res = await fetch(`${apiBase}/api/schedules/head/${wardId}`, {
-            headers: authHeaders
-        });
+        const wardCode = String(getWardCodeById(wardId) || '').trim().toUpperCase();
+        console.log('wardcode Data: ',wardCode);
+        const res = await Common.fetchWithAuth(`/api/schedules/head/${wardCode}`);
         const json = await res.json();
+        console.log('Ward to open Data: ',json.data);
         if (!res.ok || !json?.data?.open) {
             bookingOpen = false;
             bookingBanner.text('หัวหน้ายังไม่เปิดให้ Booking').show();
@@ -169,16 +183,12 @@ window.renderSchedule = async function renderSchedule(options = {}) {
     if (!editUserId && wardItems.length === 1 && String(wardItems[0].code || '') === 'TEMP_WARD') {
         const tempWardId = wardItems[0]._id;
         try {
-            const headRes = await fetch(`${apiBase}/api/schedules/head/${tempWardId}`, { headers: authHeaders });
+            const wardCode = String(getWardCodeById(tempWardId) || '').trim().toUpperCase();
+            const headRes = await Common.fetchWithAuth(`/api/schedules/head/${wardCode}`);
             if (!headRes.ok) {
-                await fetch(`${apiBase}/api/scheduler-heads`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        ...authHeaders
-                    },
+                await Common.postWithAuth('/api/scheduler-heads', {
                     body: JSON.stringify({
-                        wardId: tempWardId,
+                        wardCode,
                         periodStart: new Date(),
                         periodEnd: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0),
                         status: 'OPEN',
@@ -248,7 +258,7 @@ window.renderSchedule = async function renderSchedule(options = {}) {
             for (let d = 1; d <= daysInMonth; d++) {
                 const date = new Date(year, month, d);
                 const dayIndex = date.getDay(); // 0=Sun
-                const code = (pattern.dayCodes || [])[dayIndex] || '';
+                const code = normalizeShiftCode((pattern.dayCodes || [])[dayIndex] || '');
                 if (!code) continue;
                 schedulesToCreate.push({
                     workDate: date,
@@ -263,12 +273,7 @@ window.renderSchedule = async function renderSchedule(options = {}) {
                 return;
             }
 
-            const res = await fetch(`${apiBase}/api/schedules/book`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...authHeaders
-                },
+            const res = await Common.postWithAuth('/api/schedules/book', {
                 body: JSON.stringify({
                     schedules: schedulesToCreate.map(item => ({
                         ...item,
@@ -282,14 +287,13 @@ window.renderSchedule = async function renderSchedule(options = {}) {
                 return;
             }
 
-            schedulesToCreate.forEach(item => {
-                const key = new Date(item.workDate).toDateString();
-                const existing = scheduleMap.get(key) || [];
-                if (!existing.includes(item.shiftCode)) {
-                    existing.push(item.shiftCode);
-                }
-                scheduleMap.set(key, existing);
-            });
+            const reloadRes = await loadSchedules(selectedDate);
+            const reloadJson = await reloadRes.json();
+            if (reloadRes.ok) {
+                schedules.length = 0;
+                schedules.push(...(Array.isArray(reloadJson.data) ? reloadJson.data : []));
+                rebuildScheduleMaps(schedules);
+            }
 
             renderCalendar();
             DevExpress.ui.notify('Pattern applied', 'success', 2000);
@@ -301,9 +305,9 @@ window.renderSchedule = async function renderSchedule(options = {}) {
         const raw = value
             .replace(/,/g, ' ')
             .split(' ')
-            .map(v => v.trim().toUpperCase())
+            .map(v => normalizeShiftCode(v))
             .filter(Boolean);
-        const allowed = new Set(shiftCodes.map(s => s.toUpperCase()));
+        const allowed = new Set(shiftCodes.map(s => normalizeShiftCode(s)).filter(Boolean));
         const valid = raw.filter(v => allowed.has(v));
         const unique = Array.from(new Set(valid));
         return unique;
@@ -394,10 +398,7 @@ window.renderSchedule = async function renderSchedule(options = {}) {
                         acceptBtn.on('click', async (e) => {
                             e.stopPropagation();
                             const reqId = inboxScheduleMap.get(item.id);
-                            const res = await fetch(`${apiBase}/api/changes/${reqId}/accept`, {
-                                method: 'PATCH',
-                                headers: authHeaders
-                            });
+                            const res = await Common.patchWithAuth(`/api/changes/${reqId}/accept`);
                             const json = await res.json();
                             if (!res.ok) {
                                 DevExpress.ui.notify(json.message || 'Accept failed', 'error', 3000);
@@ -491,11 +492,11 @@ window.renderSchedule = async function renderSchedule(options = {}) {
                 }
 
                 const newCodes = parseCodes($input.val());
-                const existing = new Set(codes.map(c => c.toUpperCase()));
+        const existing = new Set(codes.map(c => normalizeShiftCode(c)));
                 const toCreate = newCodes.filter(c => !existing.has(c));
 
                 if (!toCreate.length) {
-                    scheduleMap.set(key, newCodes);
+                    scheduleMap.set(getKey(selectedDate, wardId), newCodes);
                     renderCalendar();
                     return;
                 }
@@ -504,18 +505,13 @@ window.renderSchedule = async function renderSchedule(options = {}) {
                     schedules: toCreate.map(code => ({
                         workDate: selectedDate,
                         wardId,
-                        shiftCode: code,
+                        shiftCode: normalizeShiftCode(code),
                         meta: {},
                         userId: editUserId || undefined
                     }))
                 };
 
-                const res = await fetch(`${apiBase}/api/schedules/book`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        ...authHeaders
-                    },
+                const res = await Common.postWithAuth('/api/schedules/book', {
                     body: JSON.stringify(payload)
                 });
                 const json = await res.json();
@@ -576,7 +572,7 @@ window.renderSchedule = async function renderSchedule(options = {}) {
                     const wardId = String(s.wardId?._id || s.wardId);
                     const key = getKey(s.workDate, wardId);
                     if (!scheduleMap.has(key)) scheduleMap.set(key, []);
-                    scheduleMap.get(key).push(s.shiftCode);
+                    scheduleMap.get(key).push(normalizeShiftCode(s.shiftCode));
                 });
             }
         }
@@ -596,7 +592,7 @@ window.renderSchedule = async function renderSchedule(options = {}) {
                     const wardId = String(s.wardId?._id || s.wardId);
                     const key = getKey(s.workDate, wardId);
                     if (!scheduleMap.has(key)) scheduleMap.set(key, []);
-                    scheduleMap.get(key).push(s.shiftCode);
+                    scheduleMap.get(key).push(normalizeShiftCode(s.shiftCode));
                 });
             }
         }
