@@ -1,0 +1,7 @@
+{
+  "liveServer.settings.ignoreFiles": [
+    "**/uploads/**",
+    "**/node_modules/**",
+    "**/.git/**"
+  ]
+}
