@@ -66,3 +66,15 @@ npm run push:prod -- "your commit message"
 
 **‡∏´‡∏°‡∏≤‡∏¢‡πÄ‡∏´‡∏ï‡∏∏**
 - ‡∏ñ‡πâ‡∏≤‡πÑ‡∏°‡πà‡πÉ‡∏™‡πà‡∏Ç‡πâ‡∏≠‡∏Ñ‡∏ß‡∏≤‡∏° commit ‡∏à‡∏∞‡πÉ‡∏ä‡πâ‡∏Ñ‡πà‡∏≤‡πÄ‡∏£‡∏¥‡πà‡∏°‡∏ï‡πâ‡∏ô: `Prepare production BASE_URL`
+
+## Deploy Only (Render)
+Trigger deploy Õ¬Ë“ß‡¥’¬« (‰¡Ë commit/push) ‚¥¬„™È `RENDER_DEPLOY_HOOK` ®“°‰ø≈Ï `.env`
+
+**PowerShell**
+```powershell
+node -e "const path=require('path');require('dotenv').config({path:path.join(process.cwd(),'.env')}); const h=(process.env.RENDER_DEPLOY_HOOK||'').trim(); if(!h){console.log('MISSING RENDER_DEPLOY_HOOK'); process.exit(1);} fetch(h).then(r=>console.log('STATUS',r.status)).catch(e=>console.error(e.message));"
+```
+
+**º≈≈—æ∏Ï∑’Ë§“¥À«—ß**
+- ‰¥È `STATUS 200` ·ª≈«Ë“ Render √—∫§” —Ëß deploy ·≈È«
+- ∂È“¢÷Èπ `MISSING RENDER_DEPLOY_HOOK` „ÀÈ‡æ‘Ë¡µ—«·ª√π’È„π `.env` °ËÕπ

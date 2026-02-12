@@ -8,6 +8,8 @@
     "dev": "nodemon server.js",
     "test": "jest",
     "push:prod": "node scripts/push-prod.js",
+    "deploy:render": "node -e \"const path=require('path');require('dotenv').config({path:path.join(process.cwd(),'.env')}); const h=(process.env.RENDER_DEPLOY_HOOK||'').trim(); if(!h){console.log('MISSING RENDER_DEPLOY_HOOK'); process.exit(1);} fetch(h).then(r=>{console.log('STATUS',r.status); process.exit(r.ok?0:1);}).catch(e=>{console.error(e.message); process.exit(1);});\"",
+    "seed:position": "node seed/seed-position.js",
     "smoke:auth": "node scripts/smoke-auth-flow.js",
     "smoke:avatar": "node scripts/smoke-avatar-flow.js",
     "smoke:all": "npm run smoke:auth && npm run smoke:avatar"

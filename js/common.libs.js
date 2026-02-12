@@ -159,6 +159,18 @@
             const path = Common.normalizeAvatarPath(avatarUrl);
             return apiBase ? `${apiBase}${path}` : path;
         },
+        updateTopAvatar(avatarUrl, targetEl = null) {
+            const fallback = 'images/defaultprofile.jpg';
+            const resolved = Common.resolveAvatarUrl(String(avatarUrl || '').trim()) || fallback;
+            const avatarEl = targetEl && targetEl.length ? targetEl : state.topAvatarEl;
+            if (avatarEl && avatarEl.length) {
+                avatarEl.attr('src', resolved);
+            }
+            const link = document.getElementById('appFavicon');
+            if (link) {
+                link.href = resolved;
+            }
+        },
 
         async setFavicon() {
             const link = document.getElementById('appFavicon') || (() => {
@@ -188,9 +200,7 @@
             const json = await (await res).json();
             const profile = json?.data || {};
             const avatarUrl = profile?.avatar || '';
-            const proto=window.location.hostname;
-            avatarEl.attr('src', Common.resolveAvatarUrl(avatarUrl) || 'images/defaultprofile.jpg');
-            Common.setFavicon();
+            Common.updateTopAvatar(avatarUrl, avatarEl);
         },
 
         applyMenuAuthorization(allowedCodes) {
