@@ -9,6 +9,7 @@
         menuReady: false,
         pendingAllowedCodes: null,
         menuButtons: {},
+        menuButtonsByNormalized: {},
         dropdownMenu: null,
         topAvatarEl: null,
         updateAuthUI: null
@@ -27,6 +28,9 @@
         },
         getMenuAccess(code) {
             return (window.MenuAccess && window.MenuAccess[code]) || null;
+        },
+        normalizeMenuCode(code) {
+            return String(code || '').trim().replace(/^\d+/, '');
         },
         fetchWithAuth(url, options = {}) {
             // เชื่อม ต่อ URL อย่างถูกต้อง โดยระวังเรื่อง slash ให้แล้ว
@@ -194,20 +198,37 @@
                 state.pendingAllowedCodes = allowedCodes;
                 return;
             }
-            const allowed = new Set(allowedCodes || []);
+            const isLoggedIn = !!Common.getToken();
+            const allowedRaw = new Set((allowedCodes || []).map((c) => String(c || '').trim()));
+            const allowedNormalized = new Set(
+                (allowedCodes || []).map((c) => Common.normalizeMenuCode(c))
+            );
             Object.keys(state.menuButtons).forEach((id) => {
-                if (id === 'menuLogin' || id === 'menuLogout') return;
-                if (!allowed.size) {
-                    state.menuButtons[id].toggle(true);
+                const normalizedId = Common.normalizeMenuCode(id);
+                if (normalizedId === 'menuSignup' || normalizedId === 'menuLogin') {
+                    state.menuButtons[id].toggle(!isLoggedIn);
                     return;
                 }
-                state.menuButtons[id].toggle(allowed.has(id));
+                if (normalizedId === 'menuLogout') {
+                    state.menuButtons[id].toggle(isLoggedIn);
+                    return;
+                }
+                if (!isLoggedIn) {
+                    state.menuButtons[id].toggle(false);
+                    return;
+                }
+                const isAllowed =
+                    allowedRaw.has(id) ||
+                    allowedRaw.has(normalizedId) ||
+                    allowedNormalized.has(id) ||
+                    allowedNormalized.has(normalizedId);
+                state.menuButtons[id].toggle(isAllowed);
             });
         },
 
         async loadMenuAuthorization(token) {
             if (!token) {
-                Common.applyMenuAuthorization(null);
+                Common.applyMenuAuthorization([]);
                 return;
             }
             try {
@@ -223,20 +244,33 @@
                     return;
                 }
             } catch {}
-            Common.applyMenuAuthorization(null);
+            Common.applyMenuAuthorization([]);
         },
 
         logout() {
-            localStorage.removeItem('auth_token');
-            localStorage.removeItem('auth_roles');
-            localStorage.removeItem('auth_kpi_tools');
+            localStorage.clear();
+            try { sessionStorage.clear(); } catch {}
             Common.updateTopAvatar(null);
             if (typeof state.updateAuthUI === 'function') {
                 state.updateAuthUI(false);
             }
+            // Force guest menu state immediately after token is cleared.
+            Common.applyMenuAuthorization([]);
+            // Also force drawer items in current DOM to guest state immediately.
+            $('#drawerMenu .drawer-item').each(function() {
+                const el = $(this);
+                const code = Common.normalizeMenuCode(el.data('code'));
+                const isGuestMenu = code === 'menuSignup' || code === 'menuLogin';
+                el.toggle(isGuestMenu);
+            });
             Common.loadMenuAuthorization(null);
-            if (typeof window.showPage === 'function') {
-                window.showPage('personalDashboard');
+            if (typeof window.rebuildDrawerMenu === 'function') {
+                window.rebuildDrawerMenu();
+            }
+            if (typeof window.renderLogin === 'function') {
+                window.renderLogin();
+            } else if (typeof window.showPage === 'function') {
+                window.showPage('login');
             }
         },
 
@@ -350,26 +384,39 @@
             function buildMenuItems(menus) {
                 dropdownMenu.empty();
                 Object.keys(state.menuButtons).forEach((id) => delete state.menuButtons[id]);
+                Object.keys(state.menuButtonsByNormalized).forEach((id) => delete state.menuButtonsByNormalized[id]);
                 menus.forEach((item) => {
+                    const rawCode = String(item.id || '').trim();
+                    const normalizedCode = Common.normalizeMenuCode(rawCode);
+                    const isLoggedIn = !!Common.getToken();
                     const menuItem = $('<button>', {
-                        text: item.mnu_description || item.text || item.id,
+                        text: item.mnu_description || item.text || normalizedCode || item.id,
                         class: 'dropdown-item',
                         click: () => {
             const token = Common.getToken();
-                            if (!token) {
+                            const guestAllowed = normalizedCode === 'menuSignup' || normalizedCode === 'menuLogin';
+                            if (!token && !guestAllowed) {
                                 if (typeof window.renderLogin === 'function') {
                                     window.renderLogin();
                                 }
                                 dropdownMenu.hide();
                                 return;
                             }
-                            if (typeof menuActions[item.id] === 'function') {
-                                menuActions[item.id]();
+                            if (typeof menuActions[normalizedCode] === 'function') {
+                                menuActions[normalizedCode]();
                             }
                             dropdownMenu.hide();
                         }
                     });
-                    if (item.id) state.menuButtons[item.id] = menuItem;
+                    if (normalizedCode === 'menuSignup' || normalizedCode === 'menuLogin') {
+                        menuItem.toggle(!isLoggedIn);
+                    } else if (normalizedCode === 'menuLogout') {
+                        menuItem.toggle(isLoggedIn);
+                    } else {
+                        menuItem.toggle(false);
+                    }
+                    if (rawCode) state.menuButtons[rawCode] = menuItem;
+                    if (normalizedCode) state.menuButtonsByNormalized[normalizedCode] = menuItem;
                     dropdownMenu.append(menuItem);
                 });
                 state.menuReady = true;
@@ -405,16 +452,32 @@
             });
 
             state.updateAuthUI = function updateAuthUI(isLoggedIn) {
-                if (state.menuButtons.menuLogin) state.menuButtons.menuLogin.toggle(!isLoggedIn);
-                if (state.menuButtons.menuLogout) state.menuButtons.menuLogout.toggle(isLoggedIn);
+                const signupBtn = state.menuButtonsByNormalized.menuSignup || state.menuButtons.menuSignup;
+                const loginBtn = state.menuButtonsByNormalized.menuLogin || state.menuButtons.menuLogin;
+                const logoutBtn = state.menuButtonsByNormalized.menuLogout || state.menuButtons.menuLogout;
+                if (signupBtn) signupBtn.toggle(!isLoggedIn);
+                if (loginBtn) loginBtn.toggle(!isLoggedIn);
+                if (logoutBtn) logoutBtn.toggle(isLoggedIn);
             };
 
             const initialToken = Common.getToken();
             state.updateAuthUI(!!initialToken);
             loadMenus().then(() => {
+                Common.loadMenuAuthorization(initialToken);
                 if (initialToken) {
-                    Common.loadMenuAuthorization(initialToken);
                     Common.renderProfileAvatar(state.topAvatarEl);
+                }
+            });
+
+            window.addEventListener('storage', (event) => {
+                if (!['auth_token', 'auth_roles', 'auth_kpi_tools'].includes(event.key)) return;
+                const token = Common.getToken();
+                if (typeof state.updateAuthUI === 'function') {
+                    state.updateAuthUI(!!token);
+                }
+                Common.loadMenuAuthorization(token);
+                if (typeof window.rebuildDrawerMenu === 'function') {
+                    window.rebuildDrawerMenu();
                 }
             });
         }

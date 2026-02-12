@@ -7,6 +7,7 @@ $(document).ready(function() {
 
     // state: 0 = icon only, 1 = text only, 2 = icon + text, 3 = toggle button only
     let currentStateIndex = 2;
+    const normalizeMenuCode = (code) => String(code || '').trim().replace(/^\d+/, '');
 
     function applyDrawerState(state) {
         const drawer = $('#drawer');
@@ -21,6 +22,7 @@ $(document).ready(function() {
         const drawerMenu = $('#drawerMenu');
         if (!drawerMenu.length) return;
         drawerMenu.empty();
+        const token = Common?.getToken?.();
 
         let menus = [];
         try {
@@ -35,6 +37,26 @@ $(document).ready(function() {
             }
         } catch {}
 
+        const allowedReadCodes = new Set();
+        if (token) {
+            try {
+                const res = await fetch(Common.buildApiUrl('/api/menu-authorize/me'), {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const json = await res.json();
+                if (res.ok && Array.isArray(json.data)) {
+                    json.data
+                        .filter((m) => Number(m.acc_read) === 1)
+                        .forEach((m) => {
+                            const rawCode = String(m.mnu_code || '').trim();
+                            const normalized = normalizeMenuCode(rawCode);
+                            if (rawCode) allowedReadCodes.add(rawCode);
+                            if (normalized) allowedReadCodes.add(normalized);
+                        });
+                }
+            } catch {}
+        }
+
         const palette = [
             ['#38bdf8', '#fbbf24'],
             ['#a7f3d0', '#60a5fa'],
@@ -42,10 +64,19 @@ $(document).ready(function() {
             ['#c4b5fd', '#f9a8d4']
         ];
 
-        menus.forEach((m, idx) => {
+        const visibleMenus = menus.filter((m) => {
+            const rawCode = String(m.code || '').trim();
+            const normalized = normalizeMenuCode(rawCode);
+            if (normalized === 'menuSignup' || normalized === 'menuLogin') return !token;
+            if (normalized === 'menuLogout') return !!token;
+            if (!token) return false;
+            return allowedReadCodes.has(rawCode) || allowedReadCodes.has(normalized);
+        });
+
+        visibleMenus.forEach((m, idx) => {
             const item = $('<div>', { class: 'drawer-item', 'data-code': m.code });
             const icon = $('<div>', { class: 'drawer-item-icon' });
-            const displayCode = String(m.code || '').replace(/^\d{2}/, '');
+            const displayCode = normalizeMenuCode(m.code);
             const labelText = m.label || displayCode || m.code;
             const label = $('<div>', { class: 'drawer-item-label', text: labelText });
 
@@ -66,7 +97,7 @@ $(document).ready(function() {
 
     window.drawerAction = function drawerAction(menuCode) {
         console.log('Drawer action triggered for menu code:', menuCode);
-        if (menuCode !== 'menuSignup') {
+        if (menuCode !== 'menuSignup' && menuCode !== 'menuLogin') {
             if (!Common?.getToken?.()) {
                 if (typeof window.renderLogin === 'function') {
                     window.renderLogin();
@@ -115,6 +146,9 @@ $(document).ready(function() {
     });
 
     buildDrawerMenu(currentStateIndex);
+    window.rebuildDrawerMenu = async function rebuildDrawerMenu() {
+        await buildDrawerMenu(currentStateIndex);
+    };
     window.setDrawerState = async function setDrawerState(state) {
         const next = Number(state);
         if (Number.isNaN(next)) return;
@@ -124,6 +158,7 @@ $(document).ready(function() {
 
     function renderRegister() {
         showPage('register');
+        let isSubmitting = false;
         $('#registerForm').dxForm({
             formData: {
                 employeeCode: '',
@@ -157,11 +192,15 @@ $(document).ready(function() {
             type: 'success',
             width: 100,
             onClick: async () => {
+                if (isSubmitting) return;
                 const form = $('#registerForm').dxForm('instance');
                 if (!form.validate().isValid) return;
 
                 const data = form.option('formData');
                 try {
+                    isSubmitting = true;
+                    const btn = $('#btnSave').dxButton('instance');
+                    if (btn) btn.option('disabled', true);
                     const res = await fetch(Common.buildApiUrl('/api/auth/register'), {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -179,10 +218,17 @@ $(document).ready(function() {
                         'success',
                         3000
                     );
-
-                    showPage('personalDashboard');
+                    if (typeof window.renderLogin === 'function') {
+                        window.renderLogin();
+                    } else {
+                        showPage('login');
+                    }
                 } catch (err) {
                     DevExpress.ui.notify(err.message, 'error', 3000);
+                } finally {
+                    isSubmitting = false;
+                    const btn = $('#btnSave').dxButton('instance');
+                    if (btn) btn.option('disabled', false);
                 }
             }
         });
@@ -192,7 +238,11 @@ $(document).ready(function() {
             type: 'danger',
             width: 100,
             onClick() {
-                showPage('personalDashboard');
+                if (typeof window.renderLogin === 'function') {
+                    window.renderLogin();
+                } else {
+                    showPage('login');
+                }
             }
         });
     }

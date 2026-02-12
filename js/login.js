@@ -1,34 +1,22 @@
 // js/login.js
 $(document).ready(function() {
     async function setMenuAuthorization() {
-        const res = await window.Common.fetchWithAuth('/api/menu-authorize/me');
-        const json = await res.json();
-        
-        if (!res.ok) return;
-        
-        const authorizedMenus = json.data || [];
-        
-        authorizedMenus.forEach(menu => {
-            const code = menu.mnu_code;
-            const canRead = !!menu.acc_read;
-            const canWrite = !!menu.acc_write;
-            const canExport = !!menu.acc_export;
-
-            // after this setting register should be hidden if no permissions
-            const el = $(`#drawerMenu [data-code='${code}']`);
-            el.data('canWrite', canWrite);
-            el.data('canExport', canExport);
-            window.Common.toggleEnable($(el), canRead);
-            const shouldHide = !canRead && !canWrite && !canExport;
-            window.Common.toggleHide($(el), shouldHide);
-        });
-        return;
+        if (typeof window.rebuildDrawerMenu === 'function') {
+            await window.rebuildDrawerMenu();
+        }
     }
 
     function closeLogin() {
         localStorage.removeItem('auth_token');
         localStorage.removeItem('auth_roles');
         localStorage.removeItem('auth_kpi_tools');
+        if (typeof window.updateAuthUI === 'function') {
+            window.updateAuthUI(false);
+        }
+        if (typeof window.Common?.loadMenuAuthorization === 'function') {
+            window.Common.loadMenuAuthorization(null);
+        }
+        setMenuAuthorization();
         $('#avatar').attr('src', 'images/defaultprofile.jpg');
         $('#login').addClass('pagehidden');
     }
@@ -56,11 +44,17 @@ $(document).ready(function() {
             const token = json?.data?.token;
             if (token) {
                 localStorage.setItem('auth_token', token);
+                if (typeof window.updateAuthUI === 'function') {
+                    window.updateAuthUI(true);
+                }
+                if (typeof window.Common?.loadMenuAuthorization === 'function') {
+                    await window.Common.loadMenuAuthorization(token);
+                }
             }
             //ไม่ต้องกลัว exception ปล่อยมันออกมาจะได้แก้ได้ 
             
-            Common.renderProfileAvatar($('#avatar'));         
-            setMenuAuthorization();
+            Common.renderProfileAvatar($('#avatar'));
+            await setMenuAuthorization();
             Common.setFavicon();
             $('#login').addClass('pagehidden');
             DevExpress.ui.notify('Login success!', 'success', 3000);

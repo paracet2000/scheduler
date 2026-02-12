@@ -59,6 +59,11 @@ function createTray() {
 }
 
 app.whenReady().then(async () => {
+  // Auto-start on login
+  app.setLoginItemSettings({
+    openAtLogin: true,
+    openAsHidden: true
+  });
   createTray();
   await runOnce();
   timer = setInterval(runOnce, CHECK_INTERVAL_MS);

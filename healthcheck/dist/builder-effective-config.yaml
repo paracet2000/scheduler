@@ -1,0 +1,21 @@
+directories:
+  output: dist
+  buildResources: build
+appId: com.scheduler.healthcheck
+productName: Scheduler Healthcheck
+files:
+  - filter:
+      - main.js
+      - ping.png
+      - package.json
+win:
+  target: nsis
+  icon: ping.png
+nsis:
+  oneClick: false
+  perMachine: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Scheduler Healthcheck
+  runAfterFinish: true
+electronVersion: 30.5.1
