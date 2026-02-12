@@ -49,18 +49,37 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
     let shiftRateMap = new Map();
 
     try {
-        const [wardRes, posRes, shiftRes] = await Promise.all([
-            Common.fetchWithAuth('/api/ward-members/mine'),
-            Common.fetchWithAuth('/api/configuration?typ_code=POST'),
-            Common.fetchWithAuth('/api/configuration?typ_code=SHIFT')
-        ]);
-        const wardJson = await wardRes.json();
-        const posJson = await posRes.json();
-        const shiftJson = await shiftRes.json();
-        if (!wardRes.ok) throw new Error(wardJson.message || 'Failed to load wards');
-        if (!posRes.ok) throw new Error(posJson.message || 'Failed to load positions');
-        if (!shiftRes.ok) throw new Error(shiftJson.message || 'Failed to load shifts');
+        const fetchJson = async (url, label) => {
+            const res = await Common.fetchWithAuth(url);
+            let json = null;
+            try {
+                json = await res.json();
+            } catch {
+                throw new Error(`${label}: invalid JSON response`);
+            }
+            if (!res.ok) {
+                throw new Error(`${label}: ${json?.message || `HTTP ${res.status}`}`);
+            }
+            return json;
+        };
+
+        const wardJson = await fetchJson('/api/ward-members/mine', 'Load wards failed');
         wards = Array.isArray(wardJson.data) ? wardJson.data : [];
+
+        // Soft-fail for positions/shifts so page still renders in production with partial data.
+        let posJson = { data: [] };
+        let shiftJson = { data: [] };
+        try {
+            posJson = await fetchJson('/api/configuration?typ_code=POST', 'Load positions failed');
+        } catch (err) {
+            console.warn('[summary] positions fallback:', err?.message || err);
+        }
+        try {
+            shiftJson = await fetchJson('/api/configuration?typ_code=SHIFT', 'Load shifts failed');
+        } catch (err) {
+            console.warn('[summary] shifts fallback:', err?.message || err);
+        }
+
         positions = Array.isArray(posJson.data) ? posJson.data : [];
         positions = positions.map(p => ({
             code: p.code || p.conf_code || '',
@@ -89,6 +108,7 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
             }).filter(([code]) => code)
         );
     } catch (err) {
+        DevExpress.ui.notify(err.message || 'Unable to load summary data.', 'error', 3500);
         tableWrap.append(
             $('<div>', {
                 class: 'settings-placeholder',

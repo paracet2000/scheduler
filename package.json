@@ -8,7 +8,9 @@
     "dev": "nodemon server.js",
     "test": "jest",
     "push:prod": "node scripts/push-prod.js",
-    "smoke:auth": "node scripts/smoke-auth-flow.js"
+    "smoke:auth": "node scripts/smoke-auth-flow.js",
+    "smoke:avatar": "node scripts/smoke-avatar-flow.js",
+    "smoke:all": "npm run smoke:auth && npm run smoke:avatar"
   },
   "engines": {
     "node": ">=18.0.0"

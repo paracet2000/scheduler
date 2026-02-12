@@ -4,8 +4,6 @@ const asyncHandler = require('../helpers/async.handler');
 const response = require('../helpers/response');
 const AppError = require('../helpers/apperror');
 const sharp = require('sharp');
-const fs = require('fs');
-const path = require('path');
 
 const ensureAdminOrHr = (user) => {
   // role check removed; access is controlled by menu rights on frontend
@@ -48,22 +46,19 @@ exports.updateProfile = asyncHandler(async (req, res) => {
  * @route   POST /api/users/me/avatar
  */
 exports.uploadProfileImage = asyncHandler(async (req, res) => {
-  if (!req.file) {
+  if (!req.file || !req.file.buffer) {
     throw new AppError('No image uploaded', 400);
   }
-  const tempPath = `${req.file.path}.tmp`;
 
-  await sharp(req.file.path)
-    .resize(256, 256, { fit: 'cover' })
-    .jpeg({ quality: 80 })
-    .toFile(tempPath);
+  const processedBuffer = await sharp(req.file.buffer)
+    .resize(64, 64, { fit: 'cover' })
+    .jpeg({ quality: 75, mozjpeg: true })
+    .toBuffer();
 
-  fs.renameSync(tempPath, req.file.path);
-
-  const avatarPath = `/uploads/${path.basename(req.file.path)}`;
+  const avatarDataUrl = `data:image/jpeg;base64,${processedBuffer.toString('base64')}`;
   const user = await User.findByIdAndUpdate(
     req.user._id,
-    { avatar: avatarPath },
+    { avatar: avatarDataUrl },
     { new: true }
   ).select('-password');
 
