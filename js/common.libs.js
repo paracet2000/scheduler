@@ -228,6 +228,7 @@
 
         async loadMenuAuthorization(token) {
             if (!token) {
+                Common.setMenuAccessMap({});
                 Common.applyMenuAuthorization([]);
                 return;
             }
@@ -237,6 +238,20 @@
                 });
                 const json = await res.json();
                 if (res.ok && Array.isArray(json.data)) {
+                    const accessMap = {};
+                    json.data.forEach((m) => {
+                        const rawCode = String(m?.mnu_code || '').trim();
+                        const normalizedCode = Common.normalizeMenuCode(rawCode);
+                        const access = {
+                            mnu_code: rawCode,
+                            acc_read: Number(m?.acc_read) === 1 ? 1 : 0,
+                            acc_write: Number(m?.acc_write) === 1 ? 1 : 0,
+                            acc_export: Number(m?.acc_export) === 1 ? 1 : 0
+                        };
+                        if (rawCode) accessMap[rawCode] = access;
+                        if (normalizedCode) accessMap[normalizedCode] = access;
+                    });
+                    Common.setMenuAccessMap(accessMap);
                     const allowed = json.data
                         .filter((m) => Number(m.acc_read) === 1)
                         .map((m) => m.mnu_code);
@@ -244,6 +259,7 @@
                     return;
                 }
             } catch {}
+            Common.setMenuAccessMap({});
             Common.applyMenuAuthorization([]);
         },
 
@@ -354,6 +370,16 @@
                 menuUserManagement: () => {
                     if (typeof window.renderUserManagement === 'function') {
                         window.renderUserManagement();
+                    }
+                },
+                menuShiftPattern: () => {
+                    if (typeof window.renderShiftPattern === 'function') {
+                        window.renderShiftPattern();
+                    }
+                },
+                menuUserShiftRate: () => {
+                    if (typeof window.renderUserShiftRate === 'function') {
+                        window.renderUserShiftRate();
                     }
                 },
                 menuUserRights: () => {
@@ -470,7 +496,7 @@
             });
 
             window.addEventListener('storage', (event) => {
-                if (!['auth_token', 'auth_roles', 'auth_kpi_tools'].includes(event.key)) return;
+                if (!['auth_token', 'auth_kpi_tools'].includes(event.key)) return;
                 const token = Common.getToken();
                 if (typeof state.updateAuthUI === 'function') {
                     state.updateAuthUI(!!token);

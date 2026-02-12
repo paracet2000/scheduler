@@ -120,6 +120,6 @@ $(document).ready(function() {
 
     // renderPersonalSettings moved to js/personal.js
 
-    // renderSystemSettings moved to js/master.js
+    // system settings are split into dedicated modules (config/ward/scheduler/etc.)
     window.showPage = showPage;
 });

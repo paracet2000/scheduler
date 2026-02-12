@@ -5,9 +5,12 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
         window.showPage('settingsSystem');
     }
 
-    const isHead = Helper.checkRole('head');
-    const isAdmin = Helper.checkRole('admin');
-    const isFinance = Helper.checkRole('finance');
+    const token = typeof Common?.getToken === 'function' ? Common.getToken() : localStorage.getItem('auth_token');
+    if (token && !Common.getMenuAccess('menuScheduleSummary') && typeof Common.loadMenuAuthorization === 'function') {
+        await Common.loadMenuAuthorization(token);
+    }
+    const summaryMenuAccess = Common.getMenuAccess('menuScheduleSummary') || Common.getMenuAccess('27menuScheduleSummary') || {};
+    const canSwapByExport = Number(summaryMenuAccess.acc_export) === 1;
 
     $('#systemSettings').empty();
 
@@ -141,9 +144,18 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
     let showMoney = false;
     const DEBUG_SUMMARY = true;
     let rateMap = new Map();
+    const defaultFinanceRateMap = new Map([
+        ['ช', 700],
+        ['บ', 800],
+        ['ด', 100]
+    ]);
 
     const getBucket = (code) => {
         const upper = String(code || '').toUpperCase();
+        const rawCode = String(code || '').trim();
+        if (rawCode.startsWith('ช')) return 'morning';
+        if (rawCode.startsWith('บ')) return 'afternoon';
+        if (rawCode.startsWith('ด')) return 'night';
         const meta = shiftMeta.get(upper) || {};
         const raw = String(
             meta.bucket || meta.shift || meta.period || meta.group || meta.slot || ''
@@ -162,6 +174,15 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
 
     const normalizeCode = (code) => String(code || '').toUpperCase();
     const baseCode = (code) => normalizeCode(code).replace(/[^\p{L}\p{N}]/gu, '');
+    const canonicalShiftCode = (code) => {
+        const raw = String(code || '').trim();
+        const upper = raw.toUpperCase();
+        if (!raw) return '';
+        if (raw.startsWith('ช') || upper === 'M' || upper === 'CH' || upper.startsWith('MORNING')) return 'ช';
+        if (raw.startsWith('บ') || upper === 'A' || upper.startsWith('AFTERNOON') || upper === 'PM') return 'บ';
+        if (raw.startsWith('ด') || upper === 'N' || upper.startsWith('NIGHT')) return 'ด';
+        return '';
+    };
     const normalizeCodes = (codes) => {
         if (!Array.isArray(codes)) return [];
         const out = [];
@@ -186,6 +207,13 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
         const baseKey = `${userId}|${base}`;
         if (rateMap.has(baseKey)) return rateMap.get(baseKey) || 0;
         if (shiftRateMap.has(base)) return shiftRateMap.get(base) || 0;
+        const canonical = canonicalShiftCode(code);
+        if (canonical) {
+            const canonicalKey = `${userId}|${canonical}`;
+            if (rateMap.has(canonicalKey)) return rateMap.get(canonicalKey) || 0;
+            if (shiftRateMap.has(canonical)) return shiftRateMap.get(canonical) || 0;
+            if (defaultFinanceRateMap.has(canonical)) return defaultFinanceRateMap.get(canonical) || 0;
+        }
         return 0;
     };
 
@@ -510,11 +538,16 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
     });
 
     toggleBtn.dxButton({
-        text: 'Switch',
+        text: 'Swap: เวร -> เงิน',
         type: 'normal',
-        visible: isFinance,
+        visible: canSwapByExport,
+        hint: 'สลับแสดงรหัสเวรและจำนวนเงิน (ช/บ/ด = 700/800/100 เมื่อไม่มีเรตเฉพาะ)',
         onClick: () => {
             showMoney = !showMoney;
+            const toggleInstance = toggleBtn.dxButton('instance');
+            if (toggleInstance) {
+                toggleInstance.option('text', showMoney ? 'Swap: เงิน -> เวร' : 'Swap: เวร -> เงิน');
+            }
             if (lastSummaryData) renderTable(lastSummaryData, lastSummaryFilters);
         }
     });

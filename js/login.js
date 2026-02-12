@@ -8,7 +8,6 @@ $(document).ready(function() {
 
     function closeLogin() {
         localStorage.removeItem('auth_token');
-        localStorage.removeItem('auth_roles');
         localStorage.removeItem('auth_kpi_tools');
         if (typeof window.updateAuthUI === 'function') {
             window.updateAuthUI(false);
@@ -44,6 +43,12 @@ $(document).ready(function() {
             const token = json?.data?.token;
             if (token) {
                 localStorage.setItem('auth_token', token);
+                const canUseKpiTools = json?.data?.meta?.['Can-use-kpi-tools'] ?? json?.data?.meta?.canUseKpiTools ?? null;
+                if (canUseKpiTools !== null && canUseKpiTools !== undefined) {
+                    localStorage.setItem('auth_kpi_tools', String(canUseKpiTools));
+                } else {
+                    localStorage.removeItem('auth_kpi_tools');
+                }
                 if (typeof window.updateAuthUI === 'function') {
                     window.updateAuthUI(true);
                 }

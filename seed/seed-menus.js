@@ -27,6 +27,7 @@ const menus = [
   { mnu_code: '55menuShiftPattern', mnu_description: 'Shift Pattern', mnu_icon: '', mnu_status: 'ACTIVE' },
   { mnu_code: '56menuUserRights', mnu_description: 'User Rights', mnu_icon: '', mnu_status: 'ACTIVE' },
   { mnu_code: '57menuTimeAttendanceSync', mnu_description: 'Time Attendance Sync', mnu_icon: '', mnu_status: 'ACTIVE' },
+  { mnu_code: '58menuUserShiftRate', mnu_description: 'User Shift Rate', mnu_icon: '', mnu_status: 'ACTIVE' },
   { mnu_code: '99menuLogout', mnu_description: 'Logout', mnu_icon: '', mnu_status: 'ACTIVE' }
 ];
 

@@ -515,6 +515,38 @@ dx-license {
     max-width: 90%;
 }
 
+/* Shift Rate (system settings) card separation */
+#settingsSystem #header {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr);
+    gap: 12px;
+    margin-bottom: 12px;
+    padding: 12px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+}
+
+#settingsSystem #headFormUser,
+#settingsSystem #headFormShift {
+    min-width: 0;
+}
+
+#settingsSystem #ShiftRateForm {
+    padding: 14px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+}
+
+@media (max-width: 768px) {
+    #settingsSystem #header {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* Wider canvas for user management */
 #userManagement.page {
     max-width: 90%;
@@ -2021,7 +2053,9 @@ dx-license {
   gap: 16px;
   padding: 16px;
 }
-
+.part {
+    padding: 12px;
+}
 #personalSettingPage .part {
   background: #fff;
   border: 1px solid #e5e7eb;

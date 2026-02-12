@@ -123,6 +123,7 @@ $(document).ready(function() {
             menuCommonReport: () => window.renderCommonReport?.(),
             menuUserManagement: () => window.renderUserManagement?.(),
             menuShiftPattern: () => window.renderShiftPattern?.(),
+            menuUserShiftRate: () => window.renderUserShiftRate?.(),
             menuUserRights: () => window.renderUserRights?.(),
             menuTimeAttendanceSync: () => {
                 if (typeof window.renderAttendanceSync === 'function') {

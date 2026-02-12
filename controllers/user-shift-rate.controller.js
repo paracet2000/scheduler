@@ -21,9 +21,10 @@ exports.meta = asyncHandler(async (req, res) => {
 });
 
 exports.list = asyncHandler(async (req, res) => {
-  const { userIds, status } = req.query;
+  const { userIds, status, shiftCode } = req.query;
   const filter = {};
   if (status) filter.status = status;
+  if (shiftCode) filter.shiftCode = String(shiftCode).toUpperCase();
   if (userIds) {
     const ids = String(userIds).split(',').map(s => s.trim()).filter(Boolean);
     if (ids.length) filter.userId = { $in: ids };
