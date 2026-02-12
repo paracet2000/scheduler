@@ -928,9 +928,51 @@ dx-license {
     margin-bottom: 14px;
 }
 
+.summary-header-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+    padding: 12px;
+    margin-bottom: 14px;
+}
+
+.summary-filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+}
+
+.summary-filter-row-main {
+    margin-bottom: 10px;
+}
+
+.summary-range-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 420px;
+}
+
+.summary-detail-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+    padding: 10px;
+}
+
 .summary-table-wrap {
     overflow: auto;
     max-width: 100%;
+}
+
+@media (max-width: 768px) {
+    .summary-range-wrap {
+        min-width: 100%;
+        flex-wrap: wrap;
+    }
 }
 
 .summary-table {

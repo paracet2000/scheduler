@@ -12,18 +12,22 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
     const summaryMenuAccess = Common.getMenuAccess('menuScheduleSummary') || Common.getMenuAccess('27menuScheduleSummary') || {};
     const canSwapByExport = Number(summaryMenuAccess.acc_export) === 1;
 
-    $('#systemSettings').empty();
+    const $summaryRoot = $('#settingsSystem');
+    $summaryRoot.empty();
 
     const initialFilters = options.filters || {};
 
-    const filters = $('<div>', { class: 'summary-filters' });
+    const headerWrap = $('<div>', { class: 'summary-header-card' });
+    const filterRowMain = $('<div>', { class: 'summary-filter-row summary-filter-row-main' });
+    const filterRowActions = $('<div>', { class: 'summary-filter-row summary-filter-row-actions' });
+    const detailWrap = $('<div>', { class: 'summary-detail-card' });
+
     const wardEl = $('<div>', { id: 'summaryWard' });
     const positionEl = $('<div>', { id: 'summaryPosition' });
-    const monthNav = $('<div>', { class: 'schedule-month-nav' });
-    const prevBtn = $('<button>', { class: 'schedule-nav-btn', text: '<' });
-    const nextBtn = $('<button>', { class: 'schedule-nav-btn', text: '>' });
-    const monthLabel = $('<div>', { class: 'schedule-month-label' });
-    monthNav.append(prevBtn, monthLabel, nextBtn);
+    const rangeWrap = $('<div>', { class: 'summary-range-wrap' });
+    const rangeFromEl = $('<div>', { id: 'summaryRangeFrom' });
+    const rangeToEl = $('<div>', { id: 'summaryRangeTo' });
+    rangeWrap.append(rangeFromEl, rangeToEl);
     const loadBtn = $('<div>', { id: 'summaryLoad' });
     const toggleBtn = $('<div>', { id: 'summaryToggle' });
     const exportBtn = $('<div>', { id: 'summaryExport' });
@@ -33,8 +37,11 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
     const tableWrap = $('<div>', { class: 'summary-table-wrap' });
 
     changeListWrap.append(changeListBtn, changeListBadge);
-    filters.append(wardEl, positionEl, monthNav, loadBtn, toggleBtn, exportBtn, changeListWrap);
-    $('#systemSettings').append(filters, tableWrap);
+    filterRowMain.append(wardEl, positionEl, rangeWrap);
+    filterRowActions.append(loadBtn, toggleBtn, exportBtn, changeListWrap);
+    headerWrap.append(filterRowMain, filterRowActions);
+    detailWrap.append(tableWrap);
+    $summaryRoot.append(headerWrap, detailWrap);
 
     let wards = [];
     let positions = [];
@@ -93,13 +100,33 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
 
     let wardInstance;
     let positionInstance;
+    let fromInstance;
+    let toInstance;
     const now = new Date();
-    let selectedDate = initialFilters.year && initialFilters.month
-        ? new Date(initialFilters.year, initialFilters.month - 1, 1)
-        : new Date(now.getFullYear(), now.getMonth(), 1);
-    const getMonthLabel = (date) => date.toLocaleString('en-US', { month: 'long', year: 'numeric' });
-    const updateMonthLabel = () => {
-        monthLabel.text(getMonthLabel(selectedDate));
+    const maxDate = new Date(now.getFullYear(), now.getMonth() + 2, now.getDate());
+    const minDate = new Date(maxDate);
+    minDate.setFullYear(minDate.getFullYear() - 1);
+    const defaultFrom = new Date(now.getFullYear(), now.getMonth(), 1);
+    const defaultTo = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    let selectedFromDate = initialFilters.from ? new Date(initialFilters.from) : defaultFrom;
+    let selectedToDate = initialFilters.to ? new Date(initialFilters.to) : defaultTo;
+
+    if (Number.isNaN(selectedFromDate.getTime())) selectedFromDate = defaultFrom;
+    if (Number.isNaN(selectedToDate.getTime())) selectedToDate = defaultTo;
+
+    const normalizeRange = () => {
+        selectedFromDate.setHours(0, 0, 0, 0);
+        selectedToDate.setHours(0, 0, 0, 0);
+        if (selectedFromDate < minDate) selectedFromDate = new Date(minDate);
+        if (selectedFromDate > maxDate) selectedFromDate = new Date(maxDate);
+        if (selectedToDate < minDate) selectedToDate = new Date(minDate);
+        if (selectedToDate > maxDate) selectedToDate = new Date(maxDate);
+        if (selectedToDate < selectedFromDate) {
+            selectedToDate = new Date(selectedFromDate);
+            if (toInstance) toInstance.option('value', selectedToDate);
+        }
+        if (fromInstance) fromInstance.option('value', selectedFromDate);
+        if (toInstance) toInstance.option('value', selectedToDate);
     };
 
     wardEl.dxSelectBox({
@@ -123,23 +150,49 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
         onInitialized(e) { positionInstance = e.component; },
         onValueChanged(e) {
             const value = Array.isArray(e.value) ? e.value : [];
-            if (value.includes('(All)') && value.length > 1) {
-                const filtered = value.filter(v => v !== '(All)');
+            if (value.includes('ALL') && value.length > 1) {
+                const filtered = value.filter(v => v !== 'ALL');
                 e.component.option('value', filtered);
             }
         }
     });
-    
-    updateMonthLabel();
 
-    prevBtn.on('click', () => {
-        selectedDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1);
-        updateMonthLabel();
+    rangeFromEl.dxDateBox({
+        value: selectedFromDate,
+        type: 'date',
+        displayFormat: 'dd/MM/yyyy',
+        min: minDate,
+        max: maxDate,
+        label: 'From',
+        labelMode: 'floating',
+        width: 150,
+        onInitialized(e) { fromInstance = e.component; },
+        onValueChanged(e) {
+            const next = e.value ? new Date(e.value) : selectedFromDate;
+            if (Number.isNaN(next.getTime())) return;
+            selectedFromDate = next;
+            normalizeRange();
+        }
     });
-    nextBtn.on('click', () => {
-        selectedDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1);
-        updateMonthLabel();
+
+    rangeToEl.dxDateBox({
+        value: selectedToDate,
+        type: 'date',
+        displayFormat: 'dd/MM/yyyy',
+        min: minDate,
+        max: maxDate,
+        label: 'To',
+        labelMode: 'floating',
+        width: 150,
+        onInitialized(e) { toInstance = e.component; },
+        onValueChanged(e) {
+            const next = e.value ? new Date(e.value) : selectedToDate;
+            if (Number.isNaN(next.getTime())) return;
+            selectedToDate = next;
+            normalizeRange();
+        }
     });
+    normalizeRange();
 
     let showMoney = false;
     const DEBUG_SUMMARY = true;
@@ -217,6 +270,14 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
         return 0;
     };
 
+    const formatMoney = (value) => {
+        const num = Number(value || 0);
+        return num.toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    };
+
     const calcMoney = (row) => {
         let morning = 0;
         let afternoon = 0;
@@ -246,23 +307,63 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
             return;
         }
 
-        const daysInMonth = data.daysInMonth || 30;
+        const dates = Array.isArray(data.dates) ? data.dates : [];
+        const daysInMonth = dates.length || data.daysInMonth || 30;
         const allPositions = positions.map(p => p.code).filter(Boolean);
         const table = $('<table>', { class: 'summary-table' });
         const thead = $('<thead>');
-        const headRow = $('<tr>');
+        const monthRow = $('<tr>');
+        const dayRow = $('<tr>');
 
-        headRow.append($('<th>', { class: 'sticky-col edit-col', text: '' }));
-        headRow.append($('<th>', { class: 'sticky-col name-col', text: 'Name' }));
-        for (let d = 1; d <= daysInMonth; d++) {
-            headRow.append($('<th>', { class: 'day-col', text: d }));
+        monthRow.append($('<th>', { class: 'sticky-col edit-col', text: '', rowspan: 2 }));
+        monthRow.append($('<th>', { class: 'sticky-col name-col', text: 'Name', rowspan: 2 }));
+
+        const monthKey = (iso, idx) => {
+            if (!iso) return `NA-${idx}`;
+            const d = new Date(iso);
+            if (Number.isNaN(d.getTime())) return `NA-${idx}`;
+            return `${d.getFullYear()}-${d.getMonth()}`;
+        };
+        const monthLabel = (iso) => {
+            if (!iso) return '-';
+            const d = new Date(iso);
+            if (Number.isNaN(d.getTime())) return '-';
+            const mmm = d.toLocaleString('en-US', { month: 'short' });
+            return `${mmm}/${d.getFullYear()}`;
+        };
+        const dayLabel = (iso, idx) => {
+            if (!iso) return String(idx + 1);
+            const d = new Date(iso);
+            if (Number.isNaN(d.getTime())) return String(idx + 1);
+            return String(d.getDate()).padStart(2, '0');
+        };
+
+        if (daysInMonth > 0) {
+            let start = 0;
+            while (start < daysInMonth) {
+                const key = monthKey(dates[start], start);
+                let end = start + 1;
+                while (end < daysInMonth && monthKey(dates[end], end) === key) {
+                    end += 1;
+                }
+                monthRow.append($('<th>', {
+                    class: 'day-col',
+                    text: monthLabel(dates[start]),
+                    colspan: end - start
+                }));
+                for (let i = start; i < end; i += 1) {
+                    dayRow.append($('<th>', { class: 'day-col', text: dayLabel(dates[i], i) }));
+                }
+                start = end;
+            }
         }
-        headRow.append($('<th>', { class: 'total-col', text: showMoney ? 'เช้า (฿)' : 'เช้า' }));
-        headRow.append($('<th>', { class: 'total-col', text: showMoney ? 'บ่าย (฿)' : 'บ่าย' }));
-        headRow.append($('<th>', { class: 'total-col', text: showMoney ? 'ดึก (฿)' : 'ดึก' }));
-        headRow.append($('<th>', { class: 'total-col', text: showMoney ? 'Total (฿)' : 'Total' }));
 
-        thead.append(headRow);
+        monthRow.append($('<th>', { class: 'total-col', text: showMoney ? 'เช้า (฿)' : 'เช้า', rowspan: 2 }));
+        monthRow.append($('<th>', { class: 'total-col', text: showMoney ? 'บ่าย (฿)' : 'บ่าย', rowspan: 2 }));
+        monthRow.append($('<th>', { class: 'total-col', text: showMoney ? 'ดึก (฿)' : 'ดึก', rowspan: 2 }));
+        monthRow.append($('<th>', { class: 'total-col', text: showMoney ? 'Total (฿)' : 'Total', rowspan: 2 }));
+
+        thead.append(monthRow, dayRow);
         table.append(thead);
 
         const tbody = $('<tbody>');
@@ -293,13 +394,15 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
                         userName: displayName,
                         userAvatar: row.avatar || '',
                         lockWard: true,
-                        lockMonth: true,
+                        lockMonth: !!filters.month,
                         returnToSummary: true,
                         summaryFilters: {
                             wardId: filters.wardId,
                             positions: filters.positions,
                             month: filters.month,
-                            year: filters.year
+                            year: filters.year,
+                            from: filters.from,
+                            to: filters.to
                         }
                     });
                 }
@@ -319,7 +422,7 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
                         if (DEBUG_SUMMARY && rowIdx === 1 && idx < 3) {
                             console.log('[summary] day rates', { userId: row.userId, day: idx + 1, items, rates });
                         }
-                        text = rates.join('+');
+                        text = rates.map(formatMoney).join('+');
                     } else {
                         text = items.join(' ');
                     }
@@ -340,10 +443,10 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
 
             if (showMoney) {
                 const money = calcMoney(row);
-                tr.append($('<td>', { class: 'total-col', text: money.morning || 0 }));
-                tr.append($('<td>', { class: 'total-col', text: money.afternoon || 0 }));
-                tr.append($('<td>', { class: 'total-col', text: money.night || 0 }));
-                tr.append($('<td>', { class: 'total-col', text: money.total || 0 }));
+                tr.append($('<td>', { class: 'total-col', text: formatMoney(money.morning) }));
+                tr.append($('<td>', { class: 'total-col', text: formatMoney(money.afternoon) }));
+                tr.append($('<td>', { class: 'total-col', text: formatMoney(money.night) }));
+                tr.append($('<td>', { class: 'total-col', text: formatMoney(money.total) }));
             } else {
                 tr.append($('<td>', { class: 'total-col', text: row.totals?.morning || 0 }));
                 tr.append($('<td>', { class: 'total-col', text: row.totals?.afternoon || 0 }));
@@ -355,7 +458,7 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
         });
 
         const selectedPositions = (positionInstance ? positionInstance.option('value') : [])
-            .filter(p => p && p !== '(All)');
+            .filter(p => p && p !== 'ALL');
         const positionList = selectedPositions.length ? selectedPositions : allPositions;
 
         const buildPositionSummary = (rows, positionsToShow) => {
@@ -458,10 +561,10 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
             });
             if (showMoney) {
                 const money = summary.money || { morning: 0, afternoon: 0, night: 0, total: 0 };
-                tr.append($('<td>', { class: 'total-col summary-total-dark', text: money.morning || 0 }));
-                tr.append($('<td>', { class: 'total-col summary-total-dark', text: money.afternoon || 0 }));
-                tr.append($('<td>', { class: 'total-col summary-total-dark', text: money.night || 0 }));
-                tr.append($('<td>', { class: 'total-col summary-total-dark', text: money.total || 0 }));
+                tr.append($('<td>', { class: 'total-col summary-total-dark', text: formatMoney(money.morning) }));
+                tr.append($('<td>', { class: 'total-col summary-total-dark', text: formatMoney(money.afternoon) }));
+                tr.append($('<td>', { class: 'total-col summary-total-dark', text: formatMoney(money.night) }));
+                tr.append($('<td>', { class: 'total-col summary-total-dark', text: formatMoney(money.total) }));
             } else {
                 tr.append($('<td>', { class: 'total-col summary-total-dark', text: summary.morning || 0 }));
                 tr.append($('<td>', { class: 'total-col summary-total-dark', text: summary.afternoon || 0 }));
@@ -484,14 +587,17 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
             DevExpress.ui.notify('Please select a ward', 'warning', 2000);
             return;
         }
-        const monthVal = selectedDate.getMonth() + 1;
-        const yearVal = selectedDate.getFullYear();
+        normalizeRange();
+        const fromDate = new Date(selectedFromDate);
+        const toDate = new Date(selectedToDate);
+        fromDate.setHours(0, 0, 0, 0);
+        toDate.setHours(23, 59, 59, 999);
         const posVal = positionInstance ? positionInstance.option('value') : [];
-        const normalizedPos = Array.isArray(posVal) ? posVal.filter(v => v && v !== '(All)') : [];
+        const normalizedPos = Array.isArray(posVal) ? posVal.filter(v => v && v !== 'ALL') : [];
         const posQuery = normalizedPos.length ? `&positions=${normalizedPos.join(',')}` : '';
 
         const res = await Common.fetchWithAuth(
-            `/api/schedules/summary/${wardId}?month=${monthVal}&year=${yearVal}${posQuery}`
+            `/api/schedules/summary-range/${wardId}?from=${encodeURIComponent(fromDate.toISOString())}&to=${encodeURIComponent(toDate.toISOString())}${posQuery}`
         );
         const json = await res.json();
         if (DEBUG_SUMMARY) console.log('[summary] data', json);
@@ -523,8 +629,10 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
         lastSummaryFilters = {
             wardId,
             positions: normalizedPos,
-            month: monthVal,
-            year: yearVal
+            from: fromDate.toISOString(),
+            to: toDate.toISOString(),
+            month: fromDate.getMonth() + 1,
+            year: fromDate.getFullYear()
         };
         renderTable(json.data, lastSummaryFilters);
     };
@@ -538,7 +646,7 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
     });
 
     toggleBtn.dxButton({
-        text: 'Swap: เวร -> เงิน',
+        text: 'เงิน',
         type: 'normal',
         visible: canSwapByExport,
         hint: 'สลับแสดงรหัสเวรและจำนวนเงิน (ช/บ/ด = 700/800/100 เมื่อไม่มีเรตเฉพาะ)',
@@ -546,7 +654,7 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
             showMoney = !showMoney;
             const toggleInstance = toggleBtn.dxButton('instance');
             if (toggleInstance) {
-                toggleInstance.option('text', showMoney ? 'Swap: เงิน -> เวร' : 'Swap: เวร -> เงิน');
+                toggleInstance.option('text', showMoney ? 'เวร' : 'เงิน');
             }
             if (lastSummaryData) renderTable(lastSummaryData, lastSummaryFilters);
         }
@@ -574,7 +682,7 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
                 || wards.find(w => w._id === wardId)?.name
                 || '')
             : '';
-        const monthLabelText = monthLabel.text() || '';
+        const rangeText = `${formatDateShort(selectedFromDate)} - ${formatDateShort(selectedToDate)}`;
         const docCode = `frm${String(wardName || 'schedule').replace(/\s+/g, '').toLowerCase()}`;
         const docDate = formatDateShort(new Date());
         const printDate = formatDateTime(new Date());
@@ -610,7 +718,7 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
     <div class="print-header">
       <div class="print-title">ตารางการทำงาน</div>
       <div class="print-meta">หน่วยงาน: ${wardName || '-'}</div>
-      <div class="print-meta">ประจำเดือน: ${monthLabelText || '-'}</div>
+      <div class="print-meta">ช่วงวันที่: ${rangeText || '-'}</div>
       <div class="print-meta">รหัสเอกสาร: ${docCode}</div>
       <div class="print-meta">วันที่เอกสาร: ${docDate}</div>
     </div>
