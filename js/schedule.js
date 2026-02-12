@@ -521,7 +521,15 @@ window.renderSchedule = async function renderSchedule(options = {}) {
                     return;
                 }
 
-                scheduleMap.set(getKey(selectedDate, wardId), newCodes);
+                const reloadRes = await loadSchedules(selectedDate);
+                const reloadJson = await reloadRes.json();
+                if (reloadRes.ok) {
+                    schedules.length = 0;
+                    schedules.push(...(Array.isArray(reloadJson.data) ? reloadJson.data : []));
+                    rebuildScheduleMaps(schedules);
+                } else {
+                    scheduleMap.set(getKey(selectedDate, wardId), newCodes);
+                }
                 renderCalendar();
                 DevExpress.ui.notify('Booked', 'success', 2000);
             };

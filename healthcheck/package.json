@@ -1,0 +1,13 @@
+﻿{
+  "name": "healthcheck-tray",
+  "version": "1.0.0",
+  "description": "Tray app to ping /api/health every 10 minutes",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "electron": "^30.0.0"
+  }
+}

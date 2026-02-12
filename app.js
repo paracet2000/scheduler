@@ -2,6 +2,9 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const compression = require('compression');
+const zlib = require('zlib');
+const mongoose = require('mongoose');
 
 const AppError = require('./helpers/apperror');
 const requestLogger = require('./middleware/request.logger');
@@ -19,6 +22,7 @@ app.use(cors({
   ],
   credentials: true
 }));
+app.use(compression());
 app.use((req, res, next) => {
   res.setHeader(
     'Content-Security-Policy',
@@ -34,6 +38,21 @@ app.use(express.static(path.resolve(__dirname)));
 /* =========================
  * Routes
  * ========================= */
+app.get('/api/health', async (req, res) => {
+  try {
+    if (mongoose.connection?.db?.admin) {
+      await mongoose.connection.db.admin().ping();
+    }
+    const gz = zlib.gzipSync(Buffer.from('1'));
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Encoding', 'gzip');
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(200).send(gz);
+  } catch (err) {
+    return res.status(500).send(Buffer.from('0'));
+  }
+});
+
 app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/users', require('./routes/user.routes'));
 app.use('/api/configuration', require('./routes/configuration.routes'));
