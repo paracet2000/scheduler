@@ -1,4 +1,5 @@
-﻿const { app, Tray, Menu, nativeImage } = require('electron');
+﻿const { app, Tray, Menu } = require('electron');
+const path = require('path');
 const https = require('https');
 const http = require('http');
 
@@ -44,9 +45,8 @@ async function runOnce() {
 }
 
 function createTray() {
-  // Simple empty icon fallback (transparent)
-  const icon = nativeImage.createEmpty();
-  tray = new Tray(icon);
+  const iconPath = path.join(__dirname, 'ping.png');
+  tray = new Tray(iconPath);
 
   const menu = Menu.buildFromTemplate([
     { label: 'Run Health Check Now', click: runOnce },
