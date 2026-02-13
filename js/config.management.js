@@ -176,13 +176,3 @@ window.renderConfigManagement = async function renderConfigManagement() {
 
     renderGrid();
 };
-$(async() =>  {
-
-    const depts =  await Common.fetchWithAuth('/api/configuration?typ_code=DEPT');
-    const department = await depts.json();
-    const deptDataLookup = department.data;
-    console.log('deptData Data: ',deptDataLookup);
-
-    
-
-});

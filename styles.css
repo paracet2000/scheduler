@@ -229,6 +229,8 @@ dx-license {
     gap: 6px;
     flex: 1;
     min-height: 0;
+    align-content: start;
+    grid-auto-rows: max-content;
     overflow-y: auto;
     overflow-x: hidden;
     padding-right: 4px;
