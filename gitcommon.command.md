@@ -114,6 +114,15 @@ $credFile = Join-Path $HOME '.git-credentials'
 if (Test-Path $credFile) {
   (Get-Content $credFile) | Where-Object { $_ -notmatch 'github\.com' } | Set-Content $credFile
 }
+
+# Remove github.com credential from Git Credential Manager
+"protocol=https`nhost=github.com`n`n" | git credential-manager erase
+
+# Remove github.com credential from Windows Credential Manager
+cmdkey /delete:LegacyGeneric:target=git:https://github.com
+
+# Verify remaining github credentials (should be empty)
+cmdkey /list | Select-String github
 ```
 
 ## 11) Quick Daily Flow

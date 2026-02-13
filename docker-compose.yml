@@ -1,0 +1,60 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: scheduler-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-scheduler}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-change-me}
+      MONGO_INITDB_DATABASE: ${MONGO_DB_NAME:-smart_schedule}
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mongosh --quiet --username $$MONGO_INITDB_ROOT_USERNAME --password $$MONGO_INITDB_ROOT_PASSWORD --authenticationDatabase admin --eval \"db.adminCommand('ping').ok\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: scheduler-app
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME:-scheduler}:${MONGO_ROOT_PASSWORD:-change-me}@mongo:27017/${MONGO_DB_NAME:-smart_schedule}?authSource=admin
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-this}
+      USE_ETHEREAL: ${USE_ETHEREAL:-true}
+      CLIENT_URL: ${CLIENT_URL:-http://localhost:5173}
+      ENABLE_NOTIFY: ${ENABLE_NOTIFY:-false}
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-}
+      MAIL_USER: ${MAIL_USER:-}
+      MAIL_PASS: ${MAIL_PASS:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      EMAIL_USER: ${EMAIL_USER:-}
+      EMAIL_PASS: ${EMAIL_PASS:-}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_FROM: ${TWILIO_FROM:-}
+    volumes:
+      - uploads_data:/app/uploads
+
+volumes:
+  mongo_data:
+  uploads_data:
