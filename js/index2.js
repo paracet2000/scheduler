@@ -5,20 +5,33 @@ $(document).ready(function() {
         $(`#${pageId}`).removeClass('pagehidden');
     }
 
-    // state: 0 = icon only, 1 = text only, 2 = icon + text, 3 = toggle button only
-    let currentStateIndex = 2;
+    const DRAWER_MODE_EXPANDED = 0;
+    const DRAWER_MODE_TOGGLE_ONLY = 1;
+    let currentDrawerMode = DRAWER_MODE_EXPANDED;
     const normalizeMenuCode = (code) => String(code || '').trim().replace(/^\d+/, '');
 
-    function applyDrawerState(state) {
+    function applyDrawerState(mode) {
         const drawer = $('#drawer');
         drawer.removeClass('drawer--icon drawer--icon-text drawer--text drawer--toggle-only');
-        if (state === 0) drawer.addClass('drawer--icon');
-        if (state === 1) drawer.addClass('drawer--text');
-        if (state === 2) drawer.addClass('drawer--icon-text');
-        if (state === 3) drawer.addClass('drawer--toggle-only');
+        if (mode === DRAWER_MODE_TOGGLE_ONLY) {
+            drawer.addClass('drawer--toggle-only');
+            return;
+        }
+        drawer.addClass('drawer--icon-text');
     }
 
-    async function buildDrawerMenu(state) {
+    function normalizeDrawerModeInput(state) {
+        if (state === 'toggle-only' || state === 'collapsed') return DRAWER_MODE_TOGGLE_ONLY;
+        if (state === 'expanded' || state === 'icon-text') return DRAWER_MODE_EXPANDED;
+
+        const next = Number(state);
+        if (Number.isNaN(next)) return currentDrawerMode;
+        // Backward compatibility with legacy states:
+        // 0/1/2 => expanded, 3 => toggle-only
+        return next === 3 ? DRAWER_MODE_TOGGLE_ONLY : DRAWER_MODE_EXPANDED;
+    }
+
+    async function buildDrawerMenu() {
         const drawerMenu = $('#drawerMenu');
         if (!drawerMenu.length) return;
         drawerMenu.empty();
@@ -86,13 +99,15 @@ $(document).ready(function() {
 
             item.append(icon, label);
             item.on('click', () => {
+                currentDrawerMode = DRAWER_MODE_TOGGLE_ONLY;
+                applyDrawerState(currentDrawerMode);
                 if (typeof window.drawerAction === 'function') {
                     window.drawerAction(displayCode || m.code);
                 }
             });
             drawerMenu.append(item);
         });
-        applyDrawerState(state);
+        applyDrawerState(currentDrawerMode);
     }
 
     window.drawerAction = function drawerAction(menuCode) {
@@ -142,19 +157,19 @@ $(document).ready(function() {
     };
 
     $('#drawerToggle').on('click', async () => {
-        currentStateIndex = (currentStateIndex + 1) % 4;
-        await buildDrawerMenu(currentStateIndex);
+        currentDrawerMode = currentDrawerMode === DRAWER_MODE_EXPANDED
+            ? DRAWER_MODE_TOGGLE_ONLY
+            : DRAWER_MODE_EXPANDED;
+        applyDrawerState(currentDrawerMode);
     });
 
-    buildDrawerMenu(currentStateIndex);
+    buildDrawerMenu();
     window.rebuildDrawerMenu = async function rebuildDrawerMenu() {
-        await buildDrawerMenu(currentStateIndex);
+        await buildDrawerMenu();
     };
     window.setDrawerState = async function setDrawerState(state) {
-        const next = Number(state);
-        if (Number.isNaN(next)) return;
-        currentStateIndex = Math.max(0, Math.min(3, next));
-        await buildDrawerMenu(currentStateIndex);
+        currentDrawerMode = normalizeDrawerModeInput(state);
+        applyDrawerState(currentDrawerMode);
     };
 
     function renderRegister() {
