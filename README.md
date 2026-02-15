@@ -68,13 +68,13 @@ npm run push:prod -- "your commit message"
 - เธ–เนเธฒเนเธกเนเนเธชเนเธเนเธญเธเธงเธฒเธก commit เธเธฐเนเธเนเธเนเธฒเน€เธฃเธดเนเธกเธ•เนเธ: `Prepare production BASE_URL`
 
 ## Deploy Only (Render)
-Trigger deploy อย่างเดียว (ไม่ commit/push) โดยใช้ `RENDER_DEPLOY_HOOK` จากไฟล์ `.env`
+Trigger deploy เธญเธขเนเธฒเธเน€เธ”เธตเธขเธง (เนเธกเน commit/push) เนเธ”เธขเนเธเน `RENDER_DEPLOY_HOOK` เธเธฒเธเนเธเธฅเน `.env`
 
 **PowerShell**
 ```powershell
 node -e "const path=require('path');require('dotenv').config({path:path.join(process.cwd(),'.env')}); const h=(process.env.RENDER_DEPLOY_HOOK||'').trim(); if(!h){console.log('MISSING RENDER_DEPLOY_HOOK'); process.exit(1);} fetch(h).then(r=>console.log('STATUS',r.status)).catch(e=>console.error(e.message));"
 ```
 
-**ผลลัพธ์ที่คาดหวัง**
-- ได้ `STATUS 200` แปลว่า Render รับคำสั่ง deploy แล้ว
-- ถ้าขึ้น `MISSING RENDER_DEPLOY_HOOK` ให้เพิ่มตัวแปรนี้ใน `.env` ก่อน
+**๏ฟฝ๏ฟฝ๏ฟฝัพ๏ฟฝ๏ฟฝ๏ฟฝ๏ฟฝาด๏ฟฝ๏ฟฝัง**
+- ๏ฟฝ๏ฟฝ `STATUS 200` ๏ฟฝ๏ฟฝ๏ฟฝ๏ฟฝ๏ฟฝ Render ๏ฟฝับ๏ฟฝ๏ฟฝ๏ฟฝ๏ฟฝ๏ฟฝ deploy ๏ฟฝ๏ฟฝ๏ฟฝ๏ฟฝ
+- ๏ฟฝ๏ฟฝาข๏ฟฝ๏ฟฝ `MISSING RENDER_DEPLOY_HOOK` ๏ฟฝ๏ฟฝ๏ฟฝ๏ฟฝ๏ฟฝ๏ฟฝ๏ฟฝ๏ฟฝ๏ฟฝ๏ฟฝ๏ฟฝรน๏ฟฝ๏ฟฝ๏ฟฝ `.env` ๏ฟฝ๏ฟฝอน

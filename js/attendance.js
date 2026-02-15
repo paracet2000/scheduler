@@ -38,7 +38,7 @@ window.renderAttendanceSync = function renderAttendanceSync() {
     };
 
     const toSeconds = (time) => {
-        const parts = String(time || '').split(':').map(Number);
+        const parts = String(time || '').trim().replace('.', ':').split(':').map(Number);
         if (parts.length < 2) return 0;
         const [h, m, s = 0] = parts;
         return (h * 3600) + (m * 60) + s;
