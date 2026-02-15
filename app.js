@@ -6,6 +6,8 @@ const compression = require('compression');
 const zlib = require('zlib');
 const mongoose = require('mongoose');
 const connectDB = require('./config/db');
+const authenticate = require('./middleware/authenticate');
+const asyncHandler = require('./helpers/async.handler');
 
 const AppError = require('./helpers/apperror');
 const requestLogger = require('./middleware/request.logger');
@@ -87,6 +89,79 @@ app.get('/api/debug/db-status', (req, res) => {
     data
   });
 });
+
+function canAccessExportDb(req) {
+  const configuredToken = String(process.env.EXPORT_DB_TOKEN || '').trim();
+  const providedToken = String(req.get('x-export-token') || req.query.token || '').trim();
+
+  if (configuredToken) {
+    return providedToken === configuredToken;
+  }
+
+  const roles = Array.isArray(req.user?.roles) ? req.user.roles : [];
+  return roles.includes('admin');
+}
+
+function isPlainObject(value) {
+  return Object.prototype.toString.call(value) === '[object Object]' && value?.constructor === Object;
+}
+
+function redactDeep(value) {
+  if (Array.isArray(value)) return value.map(redactDeep);
+  if (!value || typeof value !== 'object') return value;
+
+  // Preserve special BSON-like objects (ObjectId, Date, Buffer, etc.)
+  if (!isPlainObject(value)) return value;
+
+  const out = {};
+  for (const [k, v] of Object.entries(value)) {
+    const key = String(k || '');
+    const keyLower = key.toLowerCase();
+    const isSensitive =
+      keyLower === 'password' ||
+      keyLower.endsWith('password') ||
+      keyLower.includes('secret') ||
+      keyLower.endsWith('token') ||
+      keyLower.includes('token') ||
+      keyLower === 'mail_pass' ||
+      keyLower === 'email_pass' ||
+      keyLower === 'twilio_auth_token';
+
+    out[key] = isSensitive ? '***REDACTED***' : redactDeep(v);
+  }
+  return out;
+}
+
+app.get('/api/admin/export-db', authenticate, asyncHandler(async (req, res) => {
+  if (!canAccessExportDb(req)) {
+    throw new AppError('Forbidden', 403);
+  }
+
+  const infos = await mongoose.connection.db
+    .listCollections({}, { nameOnly: true })
+    .toArray();
+
+  const collections = {};
+  for (const info of infos) {
+    const name = String(info?.name || '').trim();
+    if (!name || name.startsWith('system.')) continue;
+
+    // Dump everything for seeding; redact known-sensitive fields defensively.
+    const docs = await mongoose.connection.db.collection(name).find({}).toArray();
+    collections[name] = docs.map(redactDeep);
+  }
+
+  const ts = new Date().toISOString().replace(/[:.]/g, '-');
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename=\"db-export-${ts}.json\"`);
+  return res.status(200).send(JSON.stringify({
+    exportedAt: new Date().toISOString(),
+    db: typeof connectDB.getDebugStatus === 'function'
+      ? connectDB.getDebugStatus().lastUriSummary
+      : null,
+    collections
+  }, null, 2));
+}));
 
 app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/users', require('./routes/user.routes'));

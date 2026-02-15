@@ -11,6 +11,7 @@ window.renderConfigManagement = async function renderConfigManagement() {
 
     const $toolbar = $('<div>', { class: 'config-toolbar' }).appendTo($page);
     const $typeWrap = $('<div>', { id: 'drpType' }).appendTo($toolbar);
+    const $exportWrap = $('<div>', { id: 'btnExportDb' }).appendTo($toolbar);
     const $gridWrap = $('<div>', { id: 'grdConfig', class: 'dx-grid config-grid' }).appendTo($page);
 
     let selectedType = null;
@@ -90,6 +91,18 @@ window.renderConfigManagement = async function renderConfigManagement() {
                 gridInstance.option('dataSource', buildStore());
                 gridInstance.refresh();
             }
+        }
+    });
+
+    $exportWrap.dxButton({
+        text: 'Export DB JSON',
+        type: 'normal',
+        onClick: async () => {
+            if (typeof window.exportDbJson !== 'function') {
+                DevExpress.ui.notify('Export module is not loaded', 'error', 3000);
+                return;
+            }
+            await window.exportDbJson();
         }
     });
 
