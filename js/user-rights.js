@@ -71,7 +71,7 @@ window.renderUserRights = async function renderUserRights() {
             showBorders: true,
             columnAutoWidth: true,
             editing: {
-                mode: 'row',
+                mode: 'popup',
                 allowUpdating: true,
                 allowAdding: true,
                 allowDeleting: false,

@@ -7,6 +7,12 @@ const AppError = require('../helpers/apperror');
 const asyncHandler = require('../helpers/async.handler');
 const response = require('../helpers/response');
 
+const toMonthYear = (value) => {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
+};
+
 /**
  * USER: book ตารางเวร (ทั้งเดือน)
  */
@@ -66,27 +72,36 @@ exports.bookSchedule = asyncHandler(async (req, res) => {
   const wardCodeMap = new Map(
     wardDocs.map(w => [String(w._id), String(w.conf_code || '').trim().toUpperCase()])
   );
-  const wardCodes = wardIds.map(id => wardCodeMap.get(String(id))).filter(Boolean);
+  const requiredKeys = new Set();
+  docs.forEach((d) => {
+    const code = wardCodeMap.get(String(d.wardId));
+    const monthYear = toMonthYear(d.workDate);
+    if (!code || !monthYear) return;
+    requiredKeys.add(`${code}|${monthYear}`);
+  });
+
+  const wardCodes = Array.from(new Set(Array.from(requiredKeys).map((k) => k.split('|')[0])));
+  const monthYears = Array.from(new Set(Array.from(requiredKeys).map((k) => k.split('|')[1])));
 
   const heads = await SchedulerHead.find({
     status: 'OPEN',
-    $or: [
-      { wardCode: { $in: wardCodes } },
-      { wardId: { $in: wardIds } }
-    ]
+    wardCode: { $in: wardCodes },
+    monthYear: { $in: monthYears }
   })
-    .select('wardCode wardId status')
+    .select('wardCode monthYear periodStart status')
     .lean();
-  const openWardCodes = new Set(heads.map(h => String(h.wardCode || '').toUpperCase()).filter(Boolean));
-  const openWardIds = new Set(heads.map(h => String(h.wardId || '')).filter(Boolean));
-  const closedWardId = wardIds.find(id => {
-    const code = wardCodeMap.get(String(id));
-    if (code && openWardCodes.has(String(code))) return false;
-    if (openWardIds.has(String(id))) return false;
-    return true;
+
+  const openKeys = new Set();
+  heads.forEach((h) => {
+    const code = String(h.wardCode || '').trim().toUpperCase();
+    const monthYear = String(h.monthYear || '').trim() || toMonthYear(h.periodStart);
+    if (code && monthYear) openKeys.add(`${code}|${monthYear}`);
   });
-  if (closedWardId) {
-    throw new AppError('Booking window is not OPEN for this ward', 400);
+
+  const missing = Array.from(requiredKeys).find((k) => !openKeys.has(k));
+  if (missing) {
+    const [code, monthYear] = missing.split('|');
+    throw new AppError(`Booking window is not OPEN for ward ${code} (${monthYear})`, 400);
   }
 
   const created = await Schedule.insertMany(docs);
@@ -226,24 +241,56 @@ exports.activateSchedule = asyncHandler(async (req, res) => {
  */
 exports.bookingWindow = asyncHandler(async (req, res) => {
   const { wardId } = req.params;
+  const { month, year } = req.query;
   const raw = String(wardId || '').trim();
+
+  let monthNum = Number(month);
+  let yearNum = Number(year);
+  if (!Number.isInteger(monthNum) || monthNum < 1 || monthNum > 12 || !Number.isInteger(yearNum) || yearNum < 1900) {
+    const now = new Date();
+    monthNum = now.getMonth() + 1;
+    yearNum = now.getFullYear();
+  }
+  const monthYear = `${String(monthNum).padStart(2, '0')}-${yearNum}`;
+
   let wardCode = raw;
   if (/^[a-f0-9]{24}$/i.test(raw)) {
     const doc = await CodeType.findById(raw).select('conf_code').lean();
     wardCode = doc?.conf_code ? String(doc.conf_code).trim() : raw;
   }
   wardCode = String(wardCode || '').trim().toUpperCase();
-  let head = await SchedulerHead.findOne({ wardCode });
+
+  let head = await SchedulerHead.findOne({ wardCode, status: 'OPEN', monthYear })
+    .select('status monthYear periodStart')
+    .lean();
+
+  // Backward compatibility for old records without monthYear.
+  if (!head) {
+    const candidates = await SchedulerHead.find({ wardCode, status: 'OPEN' })
+      .select('status monthYear periodStart')
+      .lean();
+    head = candidates.find((c) => {
+      const key = String(c.monthYear || '').trim() || toMonthYear(c.periodStart);
+      return key === monthYear;
+    }) || null;
+  }
+
   if (!head && /^[a-f0-9]{24}$/i.test(raw)) {
-    head = await SchedulerHead.findOne({ wardId: raw });
+    const candidates = await SchedulerHead.find({ wardId: raw, status: 'OPEN' })
+      .select('status monthYear periodStart')
+      .lean();
+    head = candidates.find((c) => {
+      const key = String(c.monthYear || '').trim() || toMonthYear(c.periodStart);
+      return key === monthYear;
+    }) || null;
   }
 
   if (!head) {
-    return response.success(res, { open: false, status: 'NOT_FOUND' }, 'Not opened');
+    return response.success(res, { open: false, status: 'NOT_FOUND', monthYear }, 'Not opened');
   }
 
-  const open = head.status !== 'CLOSED';
-  response.success(res, { open, status: head.status }, 'Booking window');
+  const open = head.status === 'OPEN';
+  response.success(res, { open, status: head.status, monthYear }, 'Booking window');
 });
 
 /**

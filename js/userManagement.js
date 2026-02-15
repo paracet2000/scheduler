@@ -32,7 +32,7 @@ window.renderUserManagement = async function renderUserManagement() {
         columnAutoWidth: true,
         paging: { pageSize: 10 },
         editing: {
-            mode: 'row',
+            mode: 'popup',
             allowUpdating: true,
             allowAdding: false,
             allowDeleting: false
@@ -48,6 +48,12 @@ window.renderUserManagement = async function renderUserManagement() {
                 cellTemplate: (container, options) => {
                     const roles = Array.isArray(options.value) ? options.value : [];
                     container.text(roles.join(', '));
+                },
+                formItem: {
+                    editorType: 'dxTagBox',
+                    editorOptions: {
+                        items: rolesList
+                    }
                 },
                 editCellTemplate: (cellElement, cellInfo) => {
                     $('<div>').appendTo(cellElement).dxTagBox({

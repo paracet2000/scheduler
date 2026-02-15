@@ -21,21 +21,36 @@ window.renderWardMember = async function renderWardMember() {
     let positions = [];
 
     try {
-        const [wardRes, userRes, posRes] = await Promise.all([
-            Common.fetchWithAuth('/api/configuration?typ_code=DEPT'),
+        const [meRes, userRes, posRes] = await Promise.all([
+            Common.fetchWithAuth('/api/users/me'),
             Common.fetchWithAuth('/api/users'),
             Common.fetchWithAuth('/api/configuration?typ_code=POST')
         ]);
 
-        const wardJson = await wardRes.json();
+        const meJson = await meRes.json();
         const userJson = await userRes.json();
         const posJson = await posRes.json();
 
-        if (!wardRes.ok) throw new Error(wardJson.message || 'Failed to load wards');
+        if (!meRes.ok) throw new Error(meJson.message || 'Failed to load profile');
         if (!userRes.ok) throw new Error(userJson.message || 'Failed to load users');
         if (!posRes.ok) throw new Error(posJson.message || 'Failed to load positions');
 
-        wards = Array.isArray(wardJson.data) ? wardJson.data : [];
+        const myRoles = Array.isArray(meJson?.data?.roles) ? meJson.data.roles : [];
+        const isAdmin = myRoles.some((role) => String(role || '').toLowerCase() === 'admin');
+        const wardEndpoint = isAdmin
+            ? '/api/configuration?typ_code=DEPT'
+            : '/api/ward-members/mine';
+
+        const wardRes = await Common.fetchWithAuth(wardEndpoint);
+        const wardJson = await wardRes.json();
+        if (!wardRes.ok) throw new Error(wardJson.message || 'Failed to load wards');
+
+        const rawWards = Array.isArray(wardJson.data) ? wardJson.data : [];
+        wards = rawWards.map((w) => ({
+            _id: w._id,
+            conf_description: w.conf_description || w.name || '',
+            conf_code: w.conf_code || w.code || ''
+        }));
         users = Array.isArray(userJson.data) ? userJson.data : [];
         positions = Array.isArray(posJson.data) ? posJson.data : [];
     } catch (err) {
@@ -124,7 +139,7 @@ window.renderWardMember = async function renderWardMember() {
         columnAutoWidth: true,
         paging: { pageSize: 10 },
         editing: {
-            mode: 'row',
+            mode: 'popup',
             allowUpdating: true,
             allowAdding: true,
             allowDeleting: false,
@@ -157,6 +172,12 @@ window.renderWardMember = async function renderWardMember() {
                 cellTemplate: (container, options) => {
                     const roles = Array.isArray(options.value) ? options.value : [];
                     container.text(roles.join(', '));
+                },
+                formItem: {
+                    editorType: 'dxTagBox',
+                    editorOptions: {
+                        items: ['USER', 'HEAD', 'APPROVER', 'HR', 'FINANCE']
+                    }
                 },
                 editCellTemplate: (cellElement, cellInfo) => {
                     const roleItems = ['USER', 'HEAD', 'APPROVER', 'HR', 'FINANCE'];

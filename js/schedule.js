@@ -163,7 +163,9 @@ window.renderSchedule = async function renderSchedule(options = {}) {
 
         const wardCode = String(getWardCodeById(wardId) || '').trim().toUpperCase();
         console.log('wardcode Data: ',wardCode);
-        const res = await Common.fetchWithAuth(`/api/schedules/head/${wardCode}`);
+        const month = selectedDate.getMonth() + 1;
+        const year = selectedDate.getFullYear();
+        const res = await Common.fetchWithAuth(`/api/schedules/head/${wardCode}?month=${month}&year=${year}`);
         const json = await res.json();
         console.log('Ward to open Data: ',json.data);
         if (!res.ok || !json?.data?.open) {
@@ -184,13 +186,18 @@ window.renderSchedule = async function renderSchedule(options = {}) {
         const tempWardId = wardItems[0]._id;
         try {
             const wardCode = String(getWardCodeById(tempWardId) || '').trim().toUpperCase();
-            const headRes = await Common.fetchWithAuth(`/api/schedules/head/${wardCode}`);
-            if (!headRes.ok) {
+            const month = selectedDate.getMonth() + 1;
+            const year = selectedDate.getFullYear();
+            const headRes = await Common.fetchWithAuth(`/api/schedules/head/${wardCode}?month=${month}&year=${year}`);
+            const headJson = await headRes.json();
+            if (!headRes.ok || !headJson?.data?.open) {
+                const periodStart = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+                const periodEnd = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0);
                 await Common.postWithAuth('/api/scheduler-heads', {
                     body: JSON.stringify({
                         wardCode,
-                        periodStart: new Date(),
-                        periodEnd: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0),
+                        periodStart,
+                        periodEnd,
                         status: 'OPEN',
                         note: 'Auto open for TEMP_WARD'
                     })
@@ -212,8 +219,8 @@ window.renderSchedule = async function renderSchedule(options = {}) {
         onInitialized(e) {
             wardFilterInstance = e.component;
         },
-        onValueChanged() {
-            checkBookingWindow();
+        async onValueChanged() {
+            await checkBookingWindow();
             renderCalendar();
         }
     });
@@ -584,6 +591,7 @@ window.renderSchedule = async function renderSchedule(options = {}) {
                 });
             }
         }
+        await checkBookingWindow();
         renderCalendar();
     });
     nextBtn.on('click', async () => {
@@ -604,6 +612,7 @@ window.renderSchedule = async function renderSchedule(options = {}) {
                 });
             }
         }
+        await checkBookingWindow();
         renderCalendar();
     });
 

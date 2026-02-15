@@ -23,6 +23,13 @@ const schedulerHeadSchema = new Schema(
       required: true,
     },
 
+    monthYear: {
+      type: String,
+      trim: true,
+      match: [/^\d{2}-\d{4}$/, 'monthYear must be in MM-YYYY format'],
+      index: true,
+    },
+
     // สถานะของรอบเวร
     status: {
       type: String,
@@ -76,11 +83,8 @@ const schedulerHeadSchema = new Schema(
 
 // 1 ward สามารถมี OPEN ได้เพียง 1 record เท่านั้น
 schedulerHeadSchema.index(
-  { wardCode: 1 },
-  {
-    unique: true,
-    partialFilterExpression: { status: 'OPEN' },
-  }
+  { wardCode: 1, monthYear: 1 },
+  { unique: true, partialFilterExpression: { monthYear: { $exists: true } } }
 );
 
 // index สำหรับ query ตอน create / edit schedule
@@ -104,6 +108,16 @@ schedulerHeadSchema.pre('validate', function (next) {
       new Error('periodStart must be earlier than periodEnd')
     );
   }
+
+  if (this.periodStart) {
+    const d = new Date(this.periodStart);
+    if (!Number.isNaN(d.getTime())) {
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yyyy = String(d.getFullYear());
+      this.monthYear = `${mm}-${yyyy}`;
+    }
+  }
+
   next();
 });
 

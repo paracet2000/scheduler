@@ -263,7 +263,7 @@ window.renderAttendanceSync = function renderAttendanceSync() {
             columnAutoWidth: true,
             paging: { pageSize: 10 },
             editing: {
-                mode: 'row',
+                mode: 'popup',
                 allowUpdating: true,
                 allowAdding: true,
                 allowDeleting: false,

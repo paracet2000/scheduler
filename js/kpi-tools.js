@@ -117,7 +117,7 @@ window.renderKpiTools = function renderKpiTools() {
         height: 9 * 25 + 10,
         scrolling: { mode: 'virtual' },
         editing: {
-            mode: 'row',
+            mode: 'popup',
             allowAdding: true,
             allowUpdating: true,
             allowDeleting: true,
@@ -154,6 +154,9 @@ window.renderKpiTools = function renderKpiTools() {
             {
                 dataField: 'startcolor',
                 caption: 'Start Color',
+                formItem: {
+                    editorType: 'dxColorBox'
+                },
                 editCellTemplate: (cell, info) => {
                     $('<div>').dxColorBox({
                         value: info.value,
@@ -164,6 +167,9 @@ window.renderKpiTools = function renderKpiTools() {
             {
                 dataField: 'endcolor',
                 caption: 'End Color',
+                formItem: {
+                    editorType: 'dxColorBox'
+                },
                 editCellTemplate: (cell, info) => {
                     $('<div>').dxColorBox({
                         value: info.value,

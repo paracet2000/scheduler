@@ -29,6 +29,14 @@ window.renderKpiDashboardSetting = async function renderKpiDashboardSetting() {
     }
 
     let thresholdGrid = null;
+    const createCustomTag = (args) => {
+        const text = String(args?.text || '').trim();
+        args.customItem = text || null;
+    };
+    const normalizeCodeList = (value) => {
+        if (!Array.isArray(value)) return [];
+        return value.map(v => String(v || '').toUpperCase()).filter(Boolean);
+    };
 
     const buildWidgetStore = () => new DevExpress.data.CustomStore({
         key: '_id',
@@ -64,7 +72,7 @@ window.renderKpiDashboardSetting = async function renderKpiDashboardSetting() {
         paging: { pageSize: 10 },
         selection: { mode: 'single' },
         editing: {
-            mode: 'row',
+            mode: 'popup',
             allowUpdating: true,
             allowAdding: true,
             allowDeleting: false,
@@ -90,7 +98,22 @@ window.renderKpiDashboardSetting = async function renderKpiDashboardSetting() {
             {
                 dataField: 'sourceCodes',
                 caption: 'Source Codes',
+                setCellValue: (newData, value) => {
+                    newData.sourceCodes = normalizeCodeList(value);
+                },
                 cellTemplate: (c, o) => c.text((o.value || []).join(', ')),
+                formItem: {
+                    editorType: 'dxTagBox',
+                    editorOptions: {
+                        items: definitionItems,
+                        valueExpr: 'code',
+                        displayExpr: (item) => item ? `${item.code} - ${item.name}` : '',
+                        hideSelectedItems: true,
+                        acceptCustomValue: true,
+                        placeholder: 'Select KPI or type number',
+                        onCustomItemCreating: createCustomTag
+                    }
+                },
                 editCellTemplate: (cellElement, cellInfo) => {
                     $('<div>').appendTo(cellElement).dxTagBox({
                         items: definitionItems,
@@ -115,7 +138,22 @@ window.renderKpiDashboardSetting = async function renderKpiDashboardSetting() {
             {
                 dataField: 'numeratorCodes',
                 caption: 'Numerator',
+                setCellValue: (newData, value) => {
+                    newData.numeratorCodes = normalizeCodeList(value);
+                },
                 cellTemplate: (c, o) => c.text((o.value || []).join(', ')),
+                formItem: {
+                    editorType: 'dxTagBox',
+                    editorOptions: {
+                        items: definitionItems,
+                        valueExpr: 'code',
+                        displayExpr: (item) => item ? `${item.code} - ${item.name}` : '',
+                        hideSelectedItems: true,
+                        acceptCustomValue: true,
+                        placeholder: 'Select KPI or type number',
+                        onCustomItemCreating: createCustomTag
+                    }
+                },
                 editCellTemplate: (cellElement, cellInfo) => {
                     $('<div>').appendTo(cellElement).dxTagBox({
                         items: definitionItems,
@@ -150,7 +188,22 @@ window.renderKpiDashboardSetting = async function renderKpiDashboardSetting() {
             {
                 dataField: 'denominatorCodes',
                 caption: 'Denominator',
+                setCellValue: (newData, value) => {
+                    newData.denominatorCodes = normalizeCodeList(value);
+                },
                 cellTemplate: (c, o) => c.text((o.value || []).join(', ')),
+                formItem: {
+                    editorType: 'dxTagBox',
+                    editorOptions: {
+                        items: definitionItems,
+                        valueExpr: 'code',
+                        displayExpr: (item) => item ? `${item.code} - ${item.name}` : '',
+                        hideSelectedItems: true,
+                        acceptCustomValue: true,
+                        placeholder: 'Select KPI or type number',
+                        onCustomItemCreating: createCustomTag
+                    }
+                },
                 editCellTemplate: (cellElement, cellInfo) => {
                     $('<div>').appendTo(cellElement).dxTagBox({
                         items: definitionItems,
@@ -188,7 +241,18 @@ window.renderKpiDashboardSetting = async function renderKpiDashboardSetting() {
             {
                 dataField: 'roles',
                 caption: 'Roles',
+                setCellValue: (newData, value) => {
+                    newData.roles = Array.isArray(value)
+                        ? value.map(v => String(v || '').toLowerCase()).filter(Boolean)
+                        : [];
+                },
                 cellTemplate: (c, o) => c.text((o.value || []).join(', ')),
+                formItem: {
+                    editorType: 'dxTagBox',
+                    editorOptions: {
+                        items: ['admin', 'head', 'finance', 'hr']
+                    }
+                },
                 editCellTemplate: (cellElement, cellInfo) => {
                     const roles = ['admin', 'head', 'finance', 'hr'];
                     $('<div>').appendTo(cellElement).dxTagBox({
@@ -267,7 +331,7 @@ window.renderKpiDashboardSetting = async function renderKpiDashboardSetting() {
         columnAutoWidth: true,
         paging: { pageSize: 5 },
         editing: {
-            mode: 'row',
+            mode: 'popup',
             allowUpdating: true,
             allowAdding: true,
             allowDeleting: false,

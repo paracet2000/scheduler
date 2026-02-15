@@ -37,6 +37,11 @@ window.renderKpiDefinitions = async function renderKpiDefinitions() {
         }
     });
 
+    const createCustomTag = (args) => {
+        const text = String(args?.text || '').trim();
+        args.customItem = text || null;
+    };
+
     $gridWrap.dxDataGrid({
         dataSource: buildStore(),
         keyExpr: '_id',
@@ -44,7 +49,7 @@ window.renderKpiDefinitions = async function renderKpiDefinitions() {
         columnAutoWidth: true,
         paging: { pageSize: 10 },
         editing: {
-            mode: 'row',
+            mode: 'popup',
             allowUpdating: true,
             allowAdding: true,
             allowDeleting: false,
@@ -89,6 +94,15 @@ window.renderKpiDefinitions = async function renderKpiDefinitions() {
                 cellTemplate: (container, options) => {
                     const values = Array.isArray(options.value) ? options.value : [];
                     container.text(values.join(', '));
+                },
+                formItem: {
+                    editorType: 'dxTagBox',
+                    editorOptions: {
+                        hideSelectedItems: true,
+                        acceptCustomValue: true,
+                        placeholder: 'Type and press Enter',
+                        onCustomItemCreating: createCustomTag
+                    }
                 },
                 editCellTemplate: (cellElement, cellInfo) => {
                     $('<div>').appendTo(cellElement).dxTagBox({

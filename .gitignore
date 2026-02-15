@@ -1,5 +1,24 @@
 node_modules/
+
+# Environment files
 .env
-.env.docker
+.env.local
+.env.*.local
+
+# Keep examples in repository
+!.env.example
+
+# Runtime data
 uploads/
 logs/
+*.log
+*.pid
+
+# Test output
+coverage/
+.nyc_output/
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+getdb.local.html

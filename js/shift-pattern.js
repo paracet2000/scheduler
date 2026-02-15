@@ -81,7 +81,7 @@ window.renderShiftPattern = async function renderShiftPattern() {
         columnAutoWidth: true,
         paging: { pageSize: 10 },
         editing: {
-            mode: 'row',
+            mode: 'popup',
             allowAdding: true,
             allowUpdating: true,
             allowDeleting: false,

@@ -5,6 +5,7 @@ const path = require('path');
 const compression = require('compression');
 const zlib = require('zlib');
 const mongoose = require('mongoose');
+const connectDB = require('./config/db');
 
 const AppError = require('./helpers/apperror');
 const requestLogger = require('./middleware/request.logger');
@@ -35,6 +36,21 @@ app.use(requestLogger);
 app.use('/uploads', express.static(path.resolve('uploads')));
 app.use(express.static(path.resolve(__dirname)));
 
+function canAccessDbDebug(req) {
+  const configuredToken = String(process.env.DEBUG_DB_STATUS_TOKEN || '').trim();
+  const providedToken = String(req.get('x-debug-token') || req.query.token || '').trim();
+
+  if (configuredToken) {
+    return providedToken === configuredToken;
+  }
+
+  const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+  const remote = String(req.ip || req.socket?.remoteAddress || '').trim();
+  const candidateIps = [forwarded, remote].filter(Boolean);
+
+  return candidateIps.some((ip) => ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(ip));
+}
+
 /* =========================
  * Routes
  * ========================= */
@@ -51,6 +67,25 @@ app.get('/api/health', async (req, res) => {
   } catch (err) {
     return res.status(500).send(Buffer.from('0'));
   }
+});
+
+app.get('/api/debug/db-status', (req, res) => {
+  if (!canAccessDbDebug(req)) {
+    return res.status(403).json({
+      result: false,
+      message: 'Forbidden'
+    });
+  }
+
+  const data = typeof connectDB.getDebugStatus === 'function'
+    ? connectDB.getDebugStatus()
+    : { message: 'DB status is unavailable' };
+
+  return res.status(200).json({
+    result: true,
+    message: 'DB status',
+    data
+  });
 });
 
 app.use('/api/auth', require('./routes/auth.routes'));

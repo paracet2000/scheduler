@@ -51,7 +51,7 @@ window.renderSchedulerHead = async function renderSchedulerHead() {
         columnAutoWidth: true,
         paging: { pageSize: 10 },
         editing: {
-            mode: 'row',
+            mode: 'popup',
             allowAdding: true,
             allowUpdating: false,
             allowDeleting: false,
@@ -81,6 +81,18 @@ window.renderSchedulerHead = async function renderSchedulerHead() {
                 caption: 'End',
                 dataType: 'date',
                 validationRules: [{ type: 'required' }]
+            },
+            {
+                dataField: 'monthYear',
+                caption: 'Month/Year',
+                allowEditing: false,
+                calculateCellValue: (row) => {
+                    if (row?.monthYear) return row.monthYear;
+                    const d = row?.periodStart ? new Date(row.periodStart) : null;
+                    if (!d || Number.isNaN(d.getTime())) return '';
+                    const mm = String(d.getMonth() + 1).padStart(2, '0');
+                    return `${mm}-${d.getFullYear()}`;
+                }
             },
             {
                 dataField: 'status',
@@ -158,6 +170,7 @@ window.renderSchedulerHead = async function renderSchedulerHead() {
                 return;
             }
             e.data._id = json.data?._id || e.data._id;
+            e.data.monthYear = json.data?.monthYear || e.data.monthYear;
             e.data.status = json.data?.status || 'DRAFT';
             DevExpress.ui.notify('Created', 'success', 2000);
         },

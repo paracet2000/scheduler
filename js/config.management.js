@@ -94,6 +94,11 @@ window.renderConfigManagement = async function renderConfigManagement() {
     });
 
     const renderGrid = () => {
+        const createCustomTag = (args) => {
+            const text = String(args?.text || '').trim();
+            args.customItem = text || null;
+        };
+
         gridInstance = $gridWrap.dxDataGrid({
             dataSource: buildStore(),
             keyExpr: '_id',
@@ -101,11 +106,40 @@ window.renderConfigManagement = async function renderConfigManagement() {
             columnAutoWidth: true,
             paging: { pageSize: 10 },
             editing: {
-                mode: 'row',
+                mode: 'popup',
                 allowUpdating: true,
                 allowAdding: true,
                 allowDeleting: false,
-                useIcons: true
+                useIcons: true,
+                popup: {
+                    title: 'Data Management',
+                    showTitle: true,
+                    width: 720,
+                    maxHeight: '80vh'
+                },
+                form: {
+                    colCount: 1,
+                    items: [
+                        {
+                            dataField: 'conf_code',
+                            editorOptions: {
+                                inputAttr: { style: 'text-transform: uppercase;' }
+                            }
+                        },
+                        { dataField: 'conf_description' },
+                        { dataField: 'conf_value' },
+                        {
+                            dataField: 'options',
+                            editorType: 'dxTagBox',
+                            editorOptions: {
+                                hideSelectedItems: true,
+                                acceptCustomValue: true,
+                                placeholder: 'Type and press Enter',
+                                onCustomItemCreating: createCustomTag
+                            }
+                        }
+                    ]
+                }
             },
             columns: [
                 {
@@ -139,29 +173,12 @@ window.renderConfigManagement = async function renderConfigManagement() {
                     cellTemplate: (container, options) => {
                         const values = Array.isArray(options.value) ? options.value : [];
                         container.text(values.join(', '));
-                    },
-                    editCellTemplate: (cellElement, cellInfo) => {
-                        $('<div>').appendTo(cellElement).dxTagBox({
-                            items: Array.isArray(cellInfo.value) ? cellInfo.value : [],
-                            value: cellInfo.value || [],
-                            hideSelectedItems: true,
-                            acceptCustomValue: true,
-                            placeholder: 'พิมพ์แล้วกด Enter',
-                            onCustomItemCreating: (args) => {
-                                const text = String(args.text || '').trim();
-                                if (!text) {
-                                    args.customItem = null;
-                                    return;
-                                }
-                                args.customItem = text;
-                            },
-                            onValueChanged(e) {
-                                cellInfo.setValue(e.value);
-                            }
-                        });
                     }
                 }
             ],
+            onInitNewRow: (e) => {
+                e.data.options = [];
+            },
             onRowInserted: () => {
                 DevExpress.ui.notify('Configuration created', 'success', 2000);
             },

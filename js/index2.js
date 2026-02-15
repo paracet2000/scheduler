@@ -1,5 +1,81 @@
 // js/index2.js
 $(document).ready(function() {
+    const GRID_MAX_ROWS = 25;
+    const GRID_ROW_HEIGHT = 25;
+    const GRID_HEIGHT = GRID_MAX_ROWS * GRID_ROW_HEIGHT + 10;
+
+    if (window.DevExpress?.ui?.dxDataGrid) {
+        DevExpress.ui.dxDataGrid.defaultOptions({
+            options: {
+                rowHeight: GRID_ROW_HEIGHT,
+                height: GRID_HEIGHT,
+                scrolling: {
+                    mode: 'virtual',
+                    rowRenderingMode: 'virtual'
+                },
+                paging: {
+                    pageSize: GRID_MAX_ROWS
+                },
+                editing: {
+                    useIcons: true
+                },
+                onInitialized: (e) => {
+                    const comp = e?.component;
+                    if (!comp) return;
+
+                    const scrolling = comp.option('scrolling') || {};
+                    comp.option('scrolling', {
+                        ...scrolling,
+                        mode: 'virtual',
+                        rowRenderingMode: 'virtual'
+                    });
+
+                    const paging = comp.option('paging') || {};
+                    comp.option('paging', {
+                        ...paging,
+                        pageSize: GRID_MAX_ROWS
+                    });
+
+                    const editing = comp.option('editing') || {};
+                    const allowPopup = !!(editing.allowAdding || editing.allowUpdating);
+                    if (allowPopup) {
+                        comp.option('editing', {
+                            ...editing,
+                            mode: 'popup',
+                            popup: {
+                                showTitle: true,
+                                title: 'Data Management',
+                                width: 760,
+                                maxHeight: '85vh',
+                                ...(editing.popup || {})
+                            }
+                        });
+                    }
+
+                    comp.option('height', GRID_HEIGHT);
+                },
+                onContentReady: (e) => {
+                    const comp = e?.component;
+                    if (!comp || typeof comp.getDataSource !== 'function') return;
+                    const ds = comp.getDataSource();
+                    let total = 0;
+                    if (ds) {
+                        const tc = typeof ds.totalCount === 'function' ? ds.totalCount() : null;
+                        if (typeof tc === 'number' && !Number.isNaN(tc)) {
+                            total = tc;
+                        } else if (typeof ds.items === 'function') {
+                            total = ds.items().length;
+                        } else if (Array.isArray(ds._items)) {
+                            total = ds._items.length;
+                        }
+                    }
+                    const filterRow = comp.option('filterRow') || {};
+                    comp.option('filterRow', { ...filterRow, visible: total > GRID_MAX_ROWS });
+                }
+            }
+        });
+    }
+
     function showPage(pageId) {
         $('.page').addClass('pagehidden');
         $(`#${pageId}`).removeClass('pagehidden');
@@ -8,16 +84,140 @@ $(document).ready(function() {
     const DRAWER_MODE_EXPANDED = 0;
     const DRAWER_MODE_TOGGLE_ONLY = 1;
     let currentDrawerMode = DRAWER_MODE_EXPANDED;
+    const DRAWER_WIDTH_STORAGE_KEY = 'scheduler.drawer.width';
+    const DRAWER_RESIZE_STEP = 16;
     const normalizeMenuCode = (code) => String(code || '').trim().replace(/^\d+/, '');
+    const rootStyle = window.getComputedStyle(document.documentElement);
+    const parseCssPx = (cssValue, fallback) => {
+        const next = Number.parseFloat(String(cssValue || '').trim());
+        return Number.isFinite(next) ? next : fallback;
+    };
+    const DEFAULT_DRAWER_WIDTH = parseCssPx(rootStyle.getPropertyValue('--drawer-width'), 220);
+    const DRAWER_MIN_WIDTH = parseCssPx(rootStyle.getPropertyValue('--drawer-width-min'), 180);
+    const DRAWER_MAX_WIDTH = parseCssPx(rootStyle.getPropertyValue('--drawer-width-max'), 420);
+    let expandedDrawerWidth = DEFAULT_DRAWER_WIDTH;
+
+    function isDesktopLayout() {
+        return !window.matchMedia('(max-width: 900px)').matches;
+    }
+
+    function clampDrawerWidth(width) {
+        return Math.max(DRAWER_MIN_WIDTH, Math.min(DRAWER_MAX_WIDTH, width));
+    }
+
+    function setExpandedDrawerWidth(width, persist = true) {
+        const clampedWidth = clampDrawerWidth(width);
+        expandedDrawerWidth = clampedWidth;
+        document.documentElement.style.setProperty('--drawer-width', `${clampedWidth}px`);
+        if (!persist) return;
+        try {
+            localStorage.setItem(DRAWER_WIDTH_STORAGE_KEY, String(clampedWidth));
+        } catch {}
+    }
+
+    function restoreDrawerWidth() {
+        try {
+            const raw = localStorage.getItem(DRAWER_WIDTH_STORAGE_KEY);
+            const parsed = Number(raw);
+            if (!Number.isFinite(parsed)) {
+                setExpandedDrawerWidth(DEFAULT_DRAWER_WIDTH, false);
+                return;
+            }
+            setExpandedDrawerWidth(parsed, false);
+        } catch {
+            setExpandedDrawerWidth(DEFAULT_DRAWER_WIDTH, false);
+        }
+    }
+
+    function syncDrawerSplitterState() {
+        const splitter = $('#drawerSplitter');
+        if (!splitter.length) return;
+        const isDisabled = !isDesktopLayout() || currentDrawerMode === DRAWER_MODE_TOGGLE_ONLY;
+        splitter.toggleClass('is-disabled', isDisabled);
+        splitter.attr('aria-disabled', String(isDisabled));
+    }
 
     function applyDrawerState(mode) {
         const drawer = $('#drawer');
         drawer.removeClass('drawer--icon drawer--icon-text drawer--text drawer--toggle-only');
         if (mode === DRAWER_MODE_TOGGLE_ONLY) {
             drawer.addClass('drawer--toggle-only');
+            syncDrawerSplitterState();
             return;
         }
         drawer.addClass('drawer--icon-text');
+        syncDrawerSplitterState();
+    }
+
+    function bindDrawerSplitter() {
+        const splitter = document.getElementById('drawerSplitter');
+        const drawer = document.getElementById('drawer');
+        if (!splitter || !drawer) return;
+
+        let isResizing = false;
+        let pointerId = null;
+        let startX = 0;
+        let startWidth = 0;
+
+        const stopResize = (event) => {
+            if (!isResizing) return;
+            isResizing = false;
+            document.body.classList.remove('is-resizing-drawer');
+            if (pointerId !== null && typeof splitter.releasePointerCapture === 'function') {
+                try { splitter.releasePointerCapture(pointerId); } catch {}
+            }
+            pointerId = null;
+            if (event?.preventDefault) event.preventDefault();
+        };
+
+        splitter.addEventListener('pointerdown', (event) => {
+            if (!isDesktopLayout() || currentDrawerMode === DRAWER_MODE_TOGGLE_ONLY) return;
+            isResizing = true;
+            pointerId = event.pointerId;
+            startX = event.clientX;
+            startWidth = drawer.getBoundingClientRect().width;
+            document.body.classList.add('is-resizing-drawer');
+            if (typeof splitter.setPointerCapture === 'function') {
+                try { splitter.setPointerCapture(pointerId); } catch {}
+            }
+            event.preventDefault();
+        });
+
+        splitter.addEventListener('pointermove', (event) => {
+            if (!isResizing) return;
+            const deltaX = event.clientX - startX;
+            setExpandedDrawerWidth(startWidth + deltaX);
+            event.preventDefault();
+        });
+
+        splitter.addEventListener('pointerup', stopResize);
+        splitter.addEventListener('pointercancel', stopResize);
+        splitter.addEventListener('dblclick', () => {
+            if (!isDesktopLayout()) return;
+            setExpandedDrawerWidth(DEFAULT_DRAWER_WIDTH);
+        });
+
+        splitter.addEventListener('keydown', (event) => {
+            if (!isDesktopLayout() || currentDrawerMode === DRAWER_MODE_TOGGLE_ONLY) return;
+            if (event.key === 'ArrowLeft') {
+                setExpandedDrawerWidth(expandedDrawerWidth - DRAWER_RESIZE_STEP);
+                event.preventDefault();
+            }
+            if (event.key === 'ArrowRight') {
+                setExpandedDrawerWidth(expandedDrawerWidth + DRAWER_RESIZE_STEP);
+                event.preventDefault();
+            }
+            if (event.key === 'Home') {
+                setExpandedDrawerWidth(DRAWER_MIN_WIDTH);
+                event.preventDefault();
+            }
+            if (event.key === 'End') {
+                setExpandedDrawerWidth(DRAWER_MAX_WIDTH);
+                event.preventDefault();
+            }
+        });
+
+        window.addEventListener('resize', syncDrawerSplitterState);
     }
 
     function normalizeDrawerModeInput(state) {
@@ -163,6 +363,9 @@ $(document).ready(function() {
         applyDrawerState(currentDrawerMode);
     });
 
+    restoreDrawerWidth();
+    bindDrawerSplitter();
+    syncDrawerSplitterState();
     buildDrawerMenu();
     window.rebuildDrawerMenu = async function rebuildDrawerMenu() {
         await buildDrawerMenu();
