@@ -81,7 +81,6 @@ window.renderConfigManagement = async function renderConfigManagement() {
         dataSource: types,
         valueExpr: 'typ_code',
         displayExpr: (item) => item ? item.typ_description : '',
-        placeholder: 'Select type',
         searchEnabled: true,
         showClearButton: false,
         value: selectedType,
@@ -147,7 +146,6 @@ window.renderConfigManagement = async function renderConfigManagement() {
                             editorOptions: {
                                 hideSelectedItems: true,
                                 acceptCustomValue: true,
-                                placeholder: 'Type and press Enter',
                                 onCustomItemCreating: createCustomTag
                             }
                         }

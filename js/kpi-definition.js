@@ -100,7 +100,6 @@ window.renderKpiDefinitions = async function renderKpiDefinitions() {
                     editorOptions: {
                         hideSelectedItems: true,
                         acceptCustomValue: true,
-                        placeholder: 'Type and press Enter',
                         onCustomItemCreating: createCustomTag
                     }
                 },

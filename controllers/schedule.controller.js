@@ -3,15 +3,10 @@ const SchedulerHead = require('../model/scheduler.head.model');
 const WardMember = require('../model/ward-member.model');
 const CodeType = require('../model/configuration.model');
 const { parseConfValue } = require('../utils/config-meta');
+const { toMonthYear } = require('../utils/month-year');
 const AppError = require('../helpers/apperror');
 const asyncHandler = require('../helpers/async.handler');
 const response = require('../helpers/response');
-
-const toMonthYear = (value) => {
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '';
-  return `${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
-};
 
 /**
  * USER: book ตารางเวร (ทั้งเดือน)

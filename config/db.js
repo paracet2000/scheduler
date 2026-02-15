@@ -75,7 +75,7 @@ const connectDB = async () => {
   try {
     dbDebugState.lastAttemptAt = new Date().toISOString();
     dbDebugState.lastUriSummary = summarizeMongoUri(process.env.MONGODB_URI);
-
+    
     await mongoose.connect(process.env.MONGODB_URI);
     console.log('MongoDB connected');
   } catch (err) {

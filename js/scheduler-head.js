@@ -50,6 +50,23 @@ window.renderSchedulerHead = async function renderSchedulerHead() {
         showBorders: true,
         columnAutoWidth: true,
         paging: { pageSize: 10 },
+        onRowPrepared: (e) => {
+            if (e.rowType !== 'data') return;
+
+            const st = String(e.data?.status || '').trim().toUpperCase();
+            // Color rows by status via CSS classes (see styles.css)
+            $(e.rowElement)
+                .removeClass('row-status-open row-status-draft row-status-closed')
+                .addClass(
+                    st === 'OPEN'
+                        ? 'row-status-open'
+                        : (st === 'CLOSED' || st === 'CLOSE')
+                            ? 'row-status-closed'
+                            : st === 'DRAFT'
+                                ? 'row-status-draft'
+                                : ''
+                );
+        },
         editing: {
             mode: 'popup',
             allowAdding: true,

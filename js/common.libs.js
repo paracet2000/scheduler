@@ -3,7 +3,15 @@
 (function () {
     const rawBaseUrl = typeof window.BASE_URL === 'string' ? window.BASE_URL.trim() : '';
     const isLocalHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-    window.BASE_URL = rawBaseUrl || (isLocalHost ? 'http://localhost:3000' : '');
+
+    // When the frontend is served from Express (same origin as API), use relative URLs.
+    // Only default to localhost:3000 when running the frontend from a separate dev server (e.g. Live Server/Vite).
+    const port = String(window.location.port || '').trim();
+    const isStandaloneFrontend =
+        window.location.protocol === 'file:' ||
+        (isLocalHost && (port === '5500' || port === '5173'));
+
+    window.BASE_URL = rawBaseUrl || (isStandaloneFrontend ? 'http://localhost:3000' : '');
 
     const state = {
         menuReady: false,

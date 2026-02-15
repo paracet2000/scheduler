@@ -161,16 +161,20 @@ window.renderSchedule = async function renderSchedule(options = {}) {
             return;
         }
 
-        const wardCode = String(getWardCodeById(wardId) || '').trim().toUpperCase();
-        console.log('wardcode Data: ',wardCode);
         const month = selectedDate.getMonth() + 1;
         const year = selectedDate.getFullYear();
-        const res = await Common.fetchWithAuth(`/api/schedules/head/${wardCode}?month=${month}&year=${year}`);
+        const res = await Common.fetchWithAuth(`/api/schedules/head/${encodeURIComponent(String(wardId))}?month=${month}&year=${year}`);
         const json = await res.json();
-        console.log('Ward to open Data: ',json.data);
-        if (!res.ok || !json?.data?.open) {
+        console.log('check status:',json);
+        if (!res.ok) {
             bookingOpen = false;
             bookingBanner.text('หัวหน้ายังไม่เปิดให้ Booking').show();
+            return;
+        }
+        if (!json?.data?.open) {
+            bookingOpen = false;
+            const monthYear = json?.data?.monthYear ? ` (${json.data.monthYear})` : '';
+            bookingBanner.text(`Booking is not open${monthYear}`).show();
             return;
         }
         bookingOpen = true;
@@ -188,7 +192,7 @@ window.renderSchedule = async function renderSchedule(options = {}) {
             const wardCode = String(getWardCodeById(tempWardId) || '').trim().toUpperCase();
             const month = selectedDate.getMonth() + 1;
             const year = selectedDate.getFullYear();
-            const headRes = await Common.fetchWithAuth(`/api/schedules/head/${wardCode}?month=${month}&year=${year}`);
+            const headRes = await Common.fetchWithAuth(`/api/schedules/head/${encodeURIComponent(String(tempWardId))}?month=${month}&year=${year}`);
             const headJson = await headRes.json();
             if (!headRes.ok || !headJson?.data?.open) {
                 const periodStart = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);

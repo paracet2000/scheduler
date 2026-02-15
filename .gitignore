@@ -21,4 +21,13 @@ coverage/
 # OS / editor junk
 .DS_Store
 Thumbs.db
-getdb.local.html
+
+# Temporary data pull page (local only)
+index2.html
+js/index2.js
+
+# Local exported API dumps (may contain PII/secrets)
+data/
+
+# Local backups
+js/index.js.old

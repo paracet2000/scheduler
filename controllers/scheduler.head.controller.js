@@ -3,12 +3,7 @@
 const SchedulerHead = require('../model/scheduler.head.model');
 const asyncHandler = require('../helpers/async.handler');
 const AppError = require('../helpers/apperror');
-
-const toMonthYear = (value) => {
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '';
-  return `${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
-};
+const { toMonthYear } = require('../utils/month-year');
 
 /**
  * =========================

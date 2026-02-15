@@ -31,7 +31,7 @@ git status --short
 git add -A
 
 # Or stage specific files
-git add index.html styles.css js/index2.js
+git add index.html styles.css js/index.js
 
 # Commit
 git commit -m "update menu behavior and drawer scroll"

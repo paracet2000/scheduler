@@ -2242,3 +2242,167 @@ body.is-resizing-drawer * {
     background: var(--success-700) !important;
     border-color: var(--success-700) !important;
 }
+
+/* =====================
+   dxDataGrid (Global)
+   - Border color: black
+   - Text color: black
+===================== */
+.dx-datagrid,
+.dx-datagrid .dx-datagrid-headers,
+.dx-datagrid .dx-datagrid-rowsview,
+.dx-datagrid .dx-datagrid-content,
+.dx-datagrid .dx-datagrid-total-footer,
+.dx-datagrid .dx-row > td,
+.dx-datagrid .dx-header-row > td,
+.dx-datagrid .dx-freespace-row > td {
+    border-color: #000 !important;
+}
+
+.dx-datagrid,
+.dx-datagrid .dx-row > td,
+.dx-datagrid .dx-datagrid-summary-item,
+.dx-datagrid .dx-datagrid-text-content,
+.dx-datagrid .dx-link,
+.dx-datagrid .dx-checkbox-text {
+    color: #000 !important;
+}
+
+.dx-datagrid .dx-header-row,
+.dx-datagrid .dx-header-row > td {
+    background-color: #3838c9 !important;
+    color: #ffffff !important;
+}
+
+/* dxDataGrid header: enforce contrast (text/icons/indicators) */
+.dx-datagrid .dx-datagrid-headers .dx-datagrid-text-content,
+.dx-datagrid .dx-datagrid-headers .dx-header-row .dx-icon,
+.dx-datagrid .dx-datagrid-headers .dx-header-row .dx-link,
+.dx-datagrid .dx-datagrid-headers .dx-header-row .dx-header-filter,
+.dx-datagrid .dx-datagrid-headers .dx-header-row .dx-column-indicators {
+    color: #fff !important;
+}
+
+/* Sort arrows are borders, not text color */
+.dx-datagrid .dx-datagrid-headers .dx-header-row .dx-sort-up,
+.dx-datagrid .dx-datagrid-headers .dx-header-row .dx-sort-down {
+    border-color: #fff !important;
+}
+
+/* =====================
+   dxForm (Global)
+   - Text color: black
+===================== */
+.dx-form,
+.dx-form .dx-field-item-label-text,
+.dx-form .dx-field-item-label .dx-field-item-label-text,
+.dx-form .dx-texteditor-input,
+.dx-form .dx-textarea textarea,
+.dx-form .dx-selectbox-container .dx-texteditor-input,
+.dx-form .dx-datebox .dx-texteditor-input,
+.dx-form .dx-numberbox .dx-texteditor-input {
+    color: #000 !important;
+}
+
+/* dxForm: remove placeholders everywhere (keep floating labels) */
+.dx-form .dx-placeholder {
+    display: none !important;
+}
+.dx-form .dx-texteditor-input::placeholder,
+.dx-form textarea::placeholder {
+    color: transparent !important;
+    opacity: 0 !important;
+}
+
+/* dxDataGrid: force horizontal row separators to black */
+.dx-datagrid .dx-datagrid-rowsview .dx-row > td {
+    border-bottom: 1px solid #000 !important;
+}
+
+/* dxDataGrid popup form: keep buttons compact even with colCount=1 */
+.dx-datagrid-edit-popup .dx-form .dx-button-item .dx-button,
+.dx-datagrid-edit-popup .dx-toolbar .dx-toolbar-item .dx-button {
+    width: auto !important;
+}
+
+/* dxDataGrid popup toolbar: fix button style + prevent bottom overflow (global .dx-button has margin-top) */
+.dx-datagrid-edit-popup .dx-popup-bottom .dx-toolbar-items-container {
+    padding: 10px 12px;
+    align-items: center;
+}
+
+.dx-datagrid-edit-popup .dx-popup-bottom .dx-toolbar-after {
+    /* DevExtreme pushes "after" items to the right via margin-left:auto */
+    margin-left: 0 !important;
+}
+
+.dx-datagrid-edit-popup .dx-popup-bottom .dx-toolbar-items-container {
+    justify-content: flex-start;
+}
+
+.dx-datagrid-edit-popup .dx-popup-bottom .dx-toolbar .dx-toolbar-item-content,
+.dx-datagrid-edit-popup .dx-popup-bottom .dx-toolbar .dx-button {
+    margin-top: 0 !important;
+}
+
+/* dxDataGrid popup form: force text/label to black */
+.dx-datagrid-edit-popup,
+.dx-datagrid-edit-popup .dx-popup-title,
+.dx-datagrid-edit-popup .dx-popup-title * ,
+.dx-datagrid-edit-popup .dx-form,
+.dx-datagrid-edit-popup .dx-form .dx-field-item-label-text,
+.dx-datagrid-edit-popup .dx-form .dx-texteditor-input,
+.dx-datagrid-edit-popup .dx-form .dx-texteditor-label,
+.dx-datagrid-edit-popup .dx-form .dx-texteditor-label * {
+    color: #000 !important;
+}
+
+.dx-datagrid-edit-popup .dx-form .dx-texteditor-input::placeholder,
+.dx-datagrid-edit-popup .dx-form textarea::placeholder {
+    color: #000 !important;
+    opacity: 1;
+}
+
+/* Force Save/Cancel buttons to match app button theme (DevExtreme popup lives outside .dx-datagrid DOM) */
+.dx-datagrid-edit-popup .dx-popup-bottom .dx-toolbar-after .dx-toolbar-item:first-child .dx-button.dx-button-mode-contained {
+    background: var(--primary) !important;
+    border-color: var(--primary) !important;
+    color: #fff !important;
+}
+.dx-datagrid-edit-popup .dx-popup-bottom .dx-toolbar-after .dx-toolbar-item:first-child .dx-button.dx-button-mode-contained:hover {
+    background: var(--primary-600) !important;
+    border-color: var(--primary-600) !important;
+}
+.dx-datagrid-edit-popup .dx-popup-bottom .dx-toolbar-after .dx-toolbar-item:last-child .dx-button.dx-button-mode-contained {
+    background: #e5e7eb !important;
+    border-color: #e5e7eb !important;
+    color: #0f172a !important;
+}
+.dx-datagrid-edit-popup .dx-popup-bottom .dx-toolbar-after .dx-toolbar-item:last-child .dx-button.dx-button-mode-contained:hover {
+    background: #d1d5db !important;
+    border-color: #d1d5db !important;
+}
+
+/* Scheduler Head: row colors by status */
+.scheduler-head-grid .dx-datagrid-rowsview .dx-data-row.row-status-open > td {
+    background-color: #dcfce7 !important; /* light green */
+}
+
+.scheduler-head-grid .dx-datagrid-rowsview .dx-data-row.row-status-closed > td {
+    background-color: #ffedd5 !important; /* light orange */
+}
+
+.scheduler-head-grid .dx-datagrid-rowsview .dx-data-row.row-status-draft > td {
+    background-color: #ffffff !important;
+}
+
+/* dxDataGrid: focused row background (light blue) */
+.dx-datagrid .dx-datagrid-rowsview .dx-row-focused.dx-data-row > td {
+    background-color: #dbeafe !important;
+    color: #000 !important;
+}
+
+.dx-datagrid .dx-datagrid-rowsview .dx-row-focused.dx-data-row .dx-link,
+.dx-datagrid .dx-datagrid-rowsview .dx-row-focused.dx-data-row .dx-icon {
+    color: #000 !important;
+}

@@ -6,7 +6,7 @@ FAIL: script missing: https://cdn3.devexpress.com/jslib/25.2.4/js/dx.all.js
 FAIL: script missing: https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js
 FAIL: script missing: https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 FAIL: script missing: https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js
-OK: script exists: js/index2.js
+OK: script exists: js/index.js
 OK: script exists: js/personal.js
 OK: script exists: js/scheduler-head.js
 OK: script exists: js/changerequest.js

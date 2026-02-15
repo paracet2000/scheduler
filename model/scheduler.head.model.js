@@ -2,6 +2,7 @@
 
 const mongoose = require('mongoose');
 const { Schema } = mongoose;
+const { toMonthYear } = require('../utils/month-year');
 
 const schedulerHeadSchema = new Schema(
   {
@@ -110,12 +111,7 @@ schedulerHeadSchema.pre('validate', function (next) {
   }
 
   if (this.periodStart) {
-    const d = new Date(this.periodStart);
-    if (!Number.isNaN(d.getTime())) {
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const yyyy = String(d.getFullYear());
-      this.monthYear = `${mm}-${yyyy}`;
-    }
+    this.monthYear = toMonthYear(this.periodStart) || this.monthYear;
   }
 
   next();
