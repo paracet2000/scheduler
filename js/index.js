@@ -250,6 +250,16 @@ $(document).ready(function() {
         return next === 3 ? DRAWER_MODE_TOGGLE_ONLY : DRAWER_MODE_EXPANDED;
     }
 
+    function resolveMenuIconText({ icon, label, displayCode, code }) {
+        const rawIcon = String(icon || '').trim();
+        if (rawIcon) {
+            // keep it short to fit 28x28 icon box
+            return rawIcon.length > 2 ? rawIcon.slice(0, 2) : rawIcon;
+        }
+        const base = String(label || displayCode || code || 'M').trim();
+        return (base ? base.charAt(0) : 'M').toUpperCase();
+    }
+
     async function buildDrawerMenu() {
         const drawerMenu = $('#drawerMenu');
         if (!drawerMenu.length) return;
@@ -314,7 +324,7 @@ $(document).ready(function() {
 
             const colors = palette[idx % palette.length];
             icon.css('background', `linear-gradient(135deg, ${colors[0]}, ${colors[1]})`);
-            icon.text((m.icon || labelText || displayCode || m.code || 'M').trim().charAt(0).toUpperCase());
+            icon.text(resolveMenuIconText({ icon: m.icon, label: labelText, displayCode, code: m.code }));
 
             item.append(icon, label);
             item.on('click', () => {

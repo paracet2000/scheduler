@@ -560,6 +560,13 @@
                 ['#c4b5fd', '#f9a8d4']
             ];
 
+            const resolveMenuIconText = ({ icon, label, code }) => {
+                const rawIcon = String(icon || '').trim();
+                if (rawIcon) return rawIcon.length > 2 ? rawIcon.slice(0, 2) : rawIcon;
+                const base = String(label || code || 'M').trim();
+                return (base ? base.charAt(0) : 'M').toUpperCase();
+            };
+
             menus.forEach((m, idx) => {
                 const item = $('<div>', { class: 'drawer-item', 'data-code': m.code });
                 const icon = $('<div>', { class: 'drawer-item-icon' });
@@ -567,7 +574,7 @@
 
                 const colors = palette[idx % palette.length];
                 icon.css('background', `linear-gradient(135deg, ${colors[0]}, ${colors[1]})`);
-                icon.text((m.icon || m.label || m.code || 'M').trim().charAt(0).toUpperCase());
+                icon.text(resolveMenuIconText({ icon: m.icon, label: m.label, code: m.code }));
 
                 item.append(icon, label);
                 drawerMenu.append(item);
