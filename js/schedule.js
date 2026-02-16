@@ -136,7 +136,7 @@ window.renderSchedule = async function renderSchedule(options = {}) {
     }
 
     const shiftCodes = shifts.map(s => s.code || s.conf_code || '').filter(Boolean);
-    const normalizeShiftCode = (code) => String(code || '').trim().toUpperCase();
+    const normalizeShiftCode = (code) => String(code || '').toUpperCase().replace(/\s+/g, '').trim();
     const scheduleMap = new Map();
     const scheduleMetaMap = new Map();
     const scheduleMetaByDateCode = new Map();

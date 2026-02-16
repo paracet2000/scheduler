@@ -9,6 +9,34 @@ const AppError = require('../helpers/apperror');
 const asyncHandler = require('../helpers/async.handler');
 const response = require('../helpers/response');
 
+const getValidShiftCodeSet = async () => {
+  const shifts = await CodeType.find({ typ_code: 'SHIFT' })
+    .select('conf_code code')
+    .lean();
+  return new Set(
+    shifts
+      .map((s) => String(s?.conf_code || s?.code || '').trim().toUpperCase())
+      .filter(Boolean)
+  );
+};
+
+const assertValidShiftCodes = (codes, validSet) => {
+  const invalid = Array.from(
+    new Set(
+      (Array.isArray(codes) ? codes : [])
+        .map((c) => String(c || '').trim().toUpperCase())
+        .filter(Boolean)
+        .filter((c) => !validSet.has(c))
+    )
+  );
+  if (invalid.length) {
+    throw new AppError(`Invalid shiftCode: ${invalid.join(', ')}`, 400);
+  }
+};
+
+const normalizeShiftCodeValue = (value) =>
+  String(value || '').toUpperCase().replace(/\s+/g, '').trim();
+
 /**
  * USER: book ตารางเวร (ทั้งเดือน)
  */
@@ -20,13 +48,17 @@ exports.bookSchedule = asyncHandler(async (req, res) => {
   if (!Array.isArray(schedules) || schedules.length === 0) {
     throw new AppError('Schedule data is required', 400);
   }
+  const validShiftCodes = await getValidShiftCodeSet();
+  if (!validShiftCodes.size) {
+    throw new AppError('SHIFT configuration is missing', 500);
+  }
 
   const docs = schedules.map(item => {
     const rawWorkDate = item.workDate || item.date;
     const workDate = new Date(rawWorkDate);
     const wardId = (item.wardId && item.wardId._id) ? item.wardId._id : item.wardId;
     const shiftCodeRaw = item.shiftCode || item.shiftId;
-    const shiftCode = String(shiftCodeRaw || '').trim().toUpperCase();
+    const shiftCode = normalizeShiftCodeValue(shiftCodeRaw);
     const targetUserId = (item.userId && item.userId._id) ? item.userId._id : item.userId;
 
     if (!rawWorkDate || Number.isNaN(workDate.getTime())) {
@@ -57,6 +89,7 @@ exports.bookSchedule = asyncHandler(async (req, res) => {
       createdBy: req.user._id
     };
   });
+  assertValidShiftCodes(docs.map((d) => d.shiftCode), validShiftCodes);
 
   let created = [];
   try {
@@ -170,6 +203,12 @@ exports.dayBookSchedule = asyncHandler(async (req, res) => {
   const roles = Array.isArray(req.user?.roles) ? req.user.roles : [];
   const isHead = roles.includes('head');
   const isAdmin = roles.includes('admin');
+  const source = String(req.body?.source || '').trim().toUpperCase();
+
+  // Summary inline edit is restricted to HEAD role only.
+  if (source === 'SUMMARY' && !isHead) {
+    throw new AppError('Only head role can edit from summary', 403);
+  }
 
   const rawWorkDate = req.body?.workDate || req.body?.date;
   const workDate = new Date(rawWorkDate);
@@ -210,8 +249,15 @@ exports.dayBookSchedule = asyncHandler(async (req, res) => {
     ? req.body.shifts
     : (Array.isArray(req.body?.shiftCodes) ? req.body.shiftCodes : []);
 
-  const normalizeShiftCode = (code) => String(code || '').trim().toUpperCase();
+  const normalizeShiftCode = (code) => normalizeShiftCodeValue(code);
   const shiftCodes = Array.from(new Set(rawShifts.map(normalizeShiftCode).filter(Boolean)));
+  if (shiftCodes.length) {
+    const validShiftCodes = await getValidShiftCodeSet();
+    if (!validShiftCodes.size) {
+      throw new AppError('SHIFT configuration is missing', 500);
+    }
+    assertValidShiftCodes(shiftCodes, validShiftCodes);
+  }
 
   // clear all shifts (this ward + this date + this owner)
   await Schedule.deleteMany({ userId: ownerUserId, wardId: String(wardId).trim(), workDate });
@@ -562,8 +608,12 @@ exports.summaryByWard = asyncHandler(async (req, res) => {
   );
 
   const getBucket = (code) => {
-    const upper = String(code || '').toUpperCase();
-    const meta = shiftMeta.get(upper) || {};
+    const upper = String(code || '').trim().toUpperCase();
+    const compact = upper.replace(/\s+/g, '');
+    const meta = shiftMeta.get(compact) || shiftMeta.get(upper) || {};
+    if (compact.startsWith('ช')) return 'morning';
+    if (compact.startsWith('บ')) return 'afternoon';
+    if (compact.startsWith('ด')) return 'night';
     const raw = String(
       meta.bucket || meta.shift || meta.period || meta.group || meta.slot || meta.value || ''
     ).toLowerCase();
@@ -572,9 +622,9 @@ exports.summaryByWard = asyncHandler(async (req, res) => {
     if (['a', 'afternoon', 'pm', 'evening'].includes(raw)) return 'afternoon';
     if (['n', 'night'].includes(raw)) return 'night';
 
-    if (upper.startsWith('M')) return 'morning';
-    if (upper.startsWith('A')) return 'afternoon';
-    if (upper.startsWith('N')) return 'night';
+    if (compact.startsWith('M')) return 'morning';
+    if (compact.startsWith('A')) return 'afternoon';
+    if (compact.startsWith('N')) return 'night';
 
     return 'other';
   };
@@ -704,8 +754,12 @@ exports.summaryByWardRange = asyncHandler(async (req, res) => {
   );
 
   const getBucket = (code) => {
-    const upper = String(code || '').toUpperCase();
-    const meta = shiftMeta.get(upper) || {};
+    const upper = String(code || '').trim().toUpperCase();
+    const compact = upper.replace(/\s+/g, '');
+    const meta = shiftMeta.get(compact) || shiftMeta.get(upper) || {};
+    if (compact.startsWith('ช')) return 'morning';
+    if (compact.startsWith('บ')) return 'afternoon';
+    if (compact.startsWith('ด')) return 'night';
     const raw = String(
       meta.bucket || meta.shift || meta.period || meta.group || meta.slot || meta.value || ''
     ).toLowerCase();
@@ -714,9 +768,9 @@ exports.summaryByWardRange = asyncHandler(async (req, res) => {
     if (['a', 'afternoon', 'pm', 'evening'].includes(raw)) return 'afternoon';
     if (['n', 'night'].includes(raw)) return 'night';
 
-    if (upper.startsWith('M')) return 'morning';
-    if (upper.startsWith('A')) return 'afternoon';
-    if (upper.startsWith('N')) return 'night';
+    if (compact.startsWith('M')) return 'morning';
+    if (compact.startsWith('A')) return 'afternoon';
+    if (compact.startsWith('N')) return 'night';
 
     return 'other';
   };

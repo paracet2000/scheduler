@@ -34,11 +34,12 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
     const changeListWrap = $('<div>', { class: 'change-list-wrap' });
     const changeListBadge = $('<span>', { class: 'change-list-badge' }).hide();
     const changeListBtn = $('<div>', { id: 'summaryChangeList' });
+    const roleBanner = $('<div>', { class: 'summary-role-banner summary-role-banner--readonly' });
     const tableWrap = $('<div>', { class: 'summary-table-wrap' });
 
     changeListWrap.append(changeListBtn, changeListBadge);
     filterRowMain.append(wardEl, positionEl, rangeWrap);
-    filterRowActions.append(loadBtn, toggleBtn, exportBtn, changeListWrap);
+    filterRowActions.append(loadBtn, toggleBtn, exportBtn, changeListWrap, roleBanner);
     headerWrap.append(filterRowMain, filterRowActions);
     detailWrap.append(tableWrap);
     $summaryRoot.append(headerWrap, detailWrap);
@@ -47,6 +48,20 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
     let positions = [];
     let shiftMeta = new Map();
     let shiftRateMap = new Map();
+    let shiftOptions = [];
+    let allowedShiftCodeSet = new Set();
+    let currentRoles = [];
+    let canEditSummary = false;
+
+    const updateRoleBanner = () => {
+        const roleText = currentRoles.length ? currentRoles.join(', ') : '-';
+        const canEditText = canEditSummary ? '(แก้ได้)' : '(แก้ไม่ได้)';
+        roleBanner
+            .removeClass('summary-role-banner--editable summary-role-banner--readonly')
+            .addClass(canEditSummary ? 'summary-role-banner--editable' : 'summary-role-banner--readonly')
+            .text(`Role: ${roleText} ${canEditText}`);
+    };
+    updateRoleBanner();
 
     try {
         const fetchJson = async (url, label) => {
@@ -62,6 +77,18 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
             }
             return json;
         };
+
+        let meJson = { data: {} };
+        try {
+            meJson = await fetchJson('/api/users/me', 'Load profile failed');
+        } catch (err) {
+            console.warn('[summary] profile fallback:', err?.message || err);
+        }
+        currentRoles = Array.isArray(meJson?.data?.roles)
+            ? meJson.data.roles.map((r) => String(r || '').trim().toLowerCase()).filter(Boolean)
+            : [];
+        canEditSummary = currentRoles.includes('head');
+        updateRoleBanner();
 
         const wardJson = await fetchJson('/api/ward-members/mine', 'Load wards failed');
         wards = Array.isArray(wardJson.data) ? wardJson.data : [];
@@ -106,6 +133,23 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
                     Number(meta?.rate ?? meta?.amount ?? meta?.price ?? 0)
                 ];
             }).filter(([code]) => code)
+        );
+        shiftOptions = Array.from(
+            new Map(
+                shifts
+                    .map((s) => {
+                        const code = String(s.code || s.conf_code || '').trim().toUpperCase();
+                        const name = String(s.name || s.conf_description || code || '').trim();
+                        if (!code) return null;
+                        return [code, { code, name }];
+                    })
+                    .filter(Boolean)
+            ).values()
+        );
+        allowedShiftCodeSet = new Set(
+            shifts
+                .map(s => String(s.code || s.conf_code || '').trim().toUpperCase())
+                .filter(Boolean)
         );
     } catch (err) {
         DevExpress.ui.notify(err.message || 'Unable to load summary data.', 'error', 3500);
@@ -270,7 +314,6 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
         });
         return out;
     };
-
     const getRate = (userId, code) => {
         const raw = normalizeCode(code);
         const key = `${userId}|${raw}`;
@@ -330,7 +373,9 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
         const dates = Array.isArray(data.dates) ? data.dates : [];
         const daysInMonth = dates.length || data.daysInMonth || 30;
         const allPositions = positions.map(p => p.code).filter(Boolean);
-        const table = $('<table>', { class: 'summary-table' });
+        const table = $('<table>', {
+            class: `summary-table${canEditSummary ? '' : ' summary-table-readonly'}`
+        });
         const thead = $('<thead>');
         const monthRow = $('<tr>');
         const dayRow = $('<tr>');
@@ -395,7 +440,11 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
             const avatarUrl = row.avatar
                 ? (typeof window.resolveAvatarUrl === 'function' ? window.resolveAvatarUrl(row.avatar) : row.avatar)
                 : '';
-            const avatarBtn = $('<button>', { class: 'summary-avatar-btn', title: 'Edit' });
+            const avatarBtn = $('<button>', {
+                class: `summary-avatar-btn${canEditSummary ? '' : ' summary-avatar-btn--readonly'}`,
+                title: canEditSummary ? 'Edit' : 'Read only',
+                disabled: !canEditSummary
+            });
             const avatarEl = $('<div>', { class: 'summary-avatar' });
             if (avatarUrl) {
                 avatarEl.css('background-image', `url('${avatarUrl}')`);
@@ -404,29 +453,31 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
                 avatarEl.text(initial);
             }
             avatarBtn.append(avatarEl);
-            avatarBtn.on('click', () => {
-                if (typeof window.renderSchedule === 'function') {
-                    window.renderSchedule({
-                        userId: row.userId,
-                        wardId: filters.wardId,
-                        month: filters.month,
-                        year: filters.year,
-                        userName: displayName,
-                        userAvatar: row.avatar || '',
-                        lockWard: true,
-                        lockMonth: !!filters.month,
-                        returnToSummary: true,
-                        summaryFilters: {
+            if (canEditSummary) {
+                avatarBtn.on('click', () => {
+                    if (typeof window.renderSchedule === 'function') {
+                        window.renderSchedule({
+                            userId: row.userId,
                             wardId: filters.wardId,
-                            positions: filters.positions,
                             month: filters.month,
                             year: filters.year,
-                            from: filters.from,
-                            to: filters.to
-                        }
-                    });
-                }
-            });
+                            userName: displayName,
+                            userAvatar: row.avatar || '',
+                            lockWard: true,
+                            lockMonth: !!filters.month,
+                            returnToSummary: true,
+                            summaryFilters: {
+                                wardId: filters.wardId,
+                                positions: filters.positions,
+                                month: filters.month,
+                                year: filters.year,
+                                from: filters.from,
+                                to: filters.to
+                            }
+                        });
+                    }
+                });
+            }
             tr.append($('<td>', { class: 'sticky-col edit-col' }).append(avatarBtn));
             tr.append($('<td>', { class: 'sticky-col name-col', text: displayName }));
 
@@ -444,7 +495,7 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
                         }
                         text = rates.map(formatMoney).join('+');
                     } else {
-                        text = items.join(' ');
+                        text = items.join(', ');
                     }
                 }
                 const changeStatus = Array.isArray(row.dayChange) ? row.dayChange[idx] : '';
@@ -457,7 +508,108 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
                             : changeStatus === 'REJECTED'
                                 ? ' summary-cell-rejected'
                                 : '';
-                const cell = $('<td>', { class: `day-col${pendingClass}`, text });
+                const editableClass = (canEditSummary && !showMoney) ? ' summary-cell-editable' : '';
+                const cell = $('<td>', { class: `day-col${pendingClass}${editableClass}`, text });
+                if (canEditSummary && !showMoney) {
+                    cell.attr('title', 'คลิกเพื่อแก้เวร');
+                    cell.on('click', () => {
+                        if (cell.hasClass('summary-cell-saving')) return;
+                        const wardId = filters?.wardId;
+                        if (!wardId) {
+                            DevExpress.ui.notify('Please select a ward', 'warning', 2000);
+                            return;
+                        }
+                        const dateIso = dates[idx];
+                        const workDate = new Date(dateIso);
+                        if (!dateIso || Number.isNaN(workDate.getTime())) {
+                            DevExpress.ui.notify('Invalid workDate', 'error', 2500);
+                            return;
+                        }
+                        const popupEl = $('<div>').appendTo('body');
+                        let tagInstance = null;
+                        let saving = false;
+                        const initialValues = items
+                            .map((c) => String(c || '').trim().toUpperCase())
+                            .filter((c) => allowedShiftCodeSet.has(c));
+
+                        const popup = popupEl.dxPopup({
+                            title: `Edit shifts (${displayName})`,
+                            width: 420,
+                            height: 260,
+                            showCloseButton: true,
+                            visible: true,
+                            dragEnabled: true,
+                            contentTemplate: (contentEl) => {
+                                const tagHost = $('<div>').appendTo(contentEl);
+                                tagHost.dxTagBox({
+                                    items: shiftOptions,
+                                    displayExpr: 'name',
+                                    valueExpr: 'code',
+                                    value: initialValues,
+                                    showSelectionControls: true,
+                                    searchEnabled: true,
+                                    multiline: true,
+                                    placeholder: 'Select shift(s)',
+                                    width: '100%',
+                                    onInitialized: (e) => {
+                                        tagInstance = e.component;
+                                    }
+                                });
+
+                                const actionRow = $('<div>', { class: 'summary-shift-editor-actions' }).appendTo(contentEl);
+                                $('<div>').appendTo(actionRow).dxButton({
+                                    text: 'Save',
+                                    type: 'success',
+                                    onClick: async () => {
+                                        if (saving) return;
+                                        saving = true;
+                                        const shifts = Array.from(
+                                            new Set(
+                                                (tagInstance ? tagInstance.option('value') : [])
+                                                    .map((c) => String(c || '').trim().toUpperCase())
+                                                    .filter((c) => allowedShiftCodeSet.has(c))
+                                            )
+                                        );
+                                        cell.addClass('summary-cell-saving');
+                                        try {
+                                            const saveRes = await Common.postWithAuth('/api/schedules/day-book', {
+                                                body: JSON.stringify({
+                                                    source: 'SUMMARY',
+                                                    userId: row.userId,
+                                                    wardId,
+                                                    workDate: workDate.toISOString(),
+                                                    shifts
+                                                })
+                                            });
+                                            const saveJson = await saveRes.json();
+                                            if (!saveRes.ok) {
+                                                DevExpress.ui.notify(saveJson?.message || 'Save failed', 'error', 3000);
+                                                return;
+                                            }
+                                            DevExpress.ui.notify(shifts.length ? 'Saved' : 'Cleared', 'success', 1500);
+                                            popup.hide();
+                                            await loadSummary();
+                                        } catch (err) {
+                                            DevExpress.ui.notify(err?.message || 'Save failed', 'error', 3000);
+                                        } finally {
+                                            cell.removeClass('summary-cell-saving');
+                                            saving = false;
+                                        }
+                                    }
+                                });
+                                $('<div>').appendTo(actionRow).dxButton({
+                                    text: 'Cancel',
+                                    type: 'normal',
+                                    onClick: () => popup.hide()
+                                });
+                            },
+                            onHidden: () => {
+                                try { popup.dispose(); } catch {}
+                                popupEl.remove();
+                            }
+                        }).dxPopup('instance');
+                    });
+                }
                 tr.append(cell);
             });
 
@@ -815,68 +967,73 @@ window.renderScheduleSummary = async function renderScheduleSummary(options = {}
                 visible: true,
                 contentTemplate: (contentEl) => {
                     const gridEl = $('<div>', { id: 'changeRequestGrid', class: 'dx-grid change-request-grid' }).appendTo(contentEl);
+                    const columns = [
+                        { dataField: 'type', caption: 'Type' },
+                        { dataField: 'status', caption: 'Status' },
+                        {
+                            dataField: 'requestedBy.name',
+                            caption: 'Requested By',
+                            calculateCellValue: (row) => row.requestedBy?.name || ''
+                        },
+                        {
+                            dataField: 'acceptedBy.name',
+                            caption: 'Accepted By',
+                            calculateCellValue: (row) => row.acceptedBy?.name || ''
+                        },
+                        {
+                            dataField: 'affectedSchedules',
+                            caption: 'Schedules',
+                            calculateCellValue: (row) => Array.isArray(row.affectedSchedules) ? row.affectedSchedules.length : 0
+                        }
+                    ];
+
+                    if (canEditSummary) {
+                        columns.push({
+                            caption: 'Actions',
+                            width: 180,
+                            cellTemplate: (container, options) => {
+                                const approveBtn = $('<button>', { class: 'dx-button dx-button-mode-contained dx-button-success', text: 'Approve' });
+                                const rejectBtn = $('<button>', { class: 'dx-button dx-button-mode-contained dx-button-danger', text: 'Reject' });
+
+                                approveBtn.on('click', async () => {
+                                    const res = await Common.patchWithAuth(`/api/changes/${options.data._id}/approve`);
+                                    const json = await res.json();
+                                    if (!res.ok) {
+                                        DevExpress.ui.notify(json.message || 'Approve failed', 'error', 3000);
+                                        return;
+                                    }
+                                    DevExpress.ui.notify('Approved', 'success', 2000);
+                                    popup.hide();
+                                    await loadSummary();
+                                    await updateChangeBadge();
+                                });
+
+                                rejectBtn.on('click', async () => {
+                                    const res = await Common.patchWithAuth(`/api/changes/${options.data._id}/reject`, {
+                                        body: JSON.stringify({ reason: 'Rejected by head' })
+                                    });
+                                    const json = await res.json();
+                                    if (!res.ok) {
+                                        DevExpress.ui.notify(json.message || 'Reject failed', 'error', 3000);
+                                        return;
+                                    }
+                                    DevExpress.ui.notify('Rejected', 'success', 2000);
+                                    popup.hide();
+                                    await loadSummary();
+                                    await updateChangeBadge();
+                                });
+
+                                container.append(approveBtn, rejectBtn);
+                            }
+                        });
+                    }
+
                     gridEl.dxDataGrid({
                         dataSource: list,
                         keyExpr: '_id',
                         showBorders: true,
                         columnAutoWidth: true,
-                        columns: [
-                            { dataField: 'type', caption: 'Type' },
-                            { dataField: 'status', caption: 'Status' },
-                            {
-                                dataField: 'requestedBy.name',
-                                caption: 'Requested By',
-                                calculateCellValue: (row) => row.requestedBy?.name || ''
-                            },
-                            {
-                                dataField: 'acceptedBy.name',
-                                caption: 'Accepted By',
-                                calculateCellValue: (row) => row.acceptedBy?.name || ''
-                            },
-                            {
-                                dataField: 'affectedSchedules',
-                                caption: 'Schedules',
-                                calculateCellValue: (row) => Array.isArray(row.affectedSchedules) ? row.affectedSchedules.length : 0
-                            },
-                            {
-                                caption: 'Actions',
-                                width: 180,
-                                cellTemplate: (container, options) => {
-                                    const approveBtn = $('<button>', { class: 'dx-button dx-button-mode-contained dx-button-success', text: 'Approve' });
-                                    const rejectBtn = $('<button>', { class: 'dx-button dx-button-mode-contained dx-button-danger', text: 'Reject' });
-
-                                    approveBtn.on('click', async () => {
-                                        const res = await Common.patchWithAuth(`/api/changes/${options.data._id}/approve`);
-                                        const json = await res.json();
-                                        if (!res.ok) {
-                                            DevExpress.ui.notify(json.message || 'Approve failed', 'error', 3000);
-                                            return;
-                                        }
-                                        DevExpress.ui.notify('Approved', 'success', 2000);
-                                        popup.hide();
-                                        await loadSummary();
-                                        await updateChangeBadge();
-                                    });
-
-                                    rejectBtn.on('click', async () => {
-                                        const res = await Common.patchWithAuth(`/api/changes/${options.data._id}/reject`, {
-                                            body: JSON.stringify({ reason: 'Rejected by head' })
-                                        });
-                                        const json = await res.json();
-                                        if (!res.ok) {
-                                            DevExpress.ui.notify(json.message || 'Reject failed', 'error', 3000);
-                                            return;
-                                        }
-                                        DevExpress.ui.notify('Rejected', 'success', 2000);
-                                        popup.hide();
-                                        await loadSummary();
-                                        await updateChangeBadge();
-                                    });
-
-                                    container.append(approveBtn, rejectBtn);
-                                }
-                            }
-                        ]
+                        columns
                     });
                 }
             }).dxPopup('instance');

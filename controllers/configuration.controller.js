@@ -18,7 +18,13 @@ const buildFilter = (source = {}) => {
   return filter;
 };
 
-const normalizeCode = (value) => String(value || '').trim().toUpperCase();
+const sanitizeCodeText = (value) =>
+  String(value || '')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/^[\p{M}]+/u, '')
+    .trim();
+
+const normalizeCode = (value) => sanitizeCodeText(value).toUpperCase();
 
 const normalizeTimeHHMM = (value) => {
   const raw = String(value || '').trim().replace('.', ':');
