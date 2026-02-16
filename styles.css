@@ -2274,6 +2274,18 @@ body.is-resizing-drawer * {
   display: block;
 }
 
+#personalSettingPage .personal-readonly-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 8px;
+}
+
+#personalSettingPage #wardMemberInfoGrid,
+#personalSettingPage #myShiftRateGrid {
+  width: 100%;
+}
+
 #personalSettingPage #avatarPart {
   display: flex;
   flex-direction: column;

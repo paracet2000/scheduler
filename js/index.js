@@ -396,6 +396,10 @@ $(document).ready(function() {
     bindDrawerSplitter();
     syncDrawerSplitterState();
     buildDrawerMenu();
+    if (Common?.getToken?.()) {
+        Common.renderProfileAvatar($('#avatar'));
+        Common.setFavicon();
+    }
     window.rebuildDrawerMenu = async function rebuildDrawerMenu() {
         await buildDrawerMenu();
     };

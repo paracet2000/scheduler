@@ -26,6 +26,7 @@
     const Common = {
         // constants
         APP_NAME: 'Nurse Scheduler',
+        APP_TITLE_PREFIX: '🩺 Nurse Scheduler',
 
         // helpers
         getToken() {
@@ -39,6 +40,13 @@
         },
         normalizeMenuCode(code) {
             return String(code || '').trim().replace(/^\d+/, '');
+        },
+        updateAppTitle(displayName = '') {
+            const nameText = String(displayName || '').trim();
+            const title = nameText
+                ? `${Common.APP_TITLE_PREFIX} [ ${nameText} ]`
+                : Common.APP_TITLE_PREFIX;
+            $('.logo').text(title);
         },
         fetchWithAuth(url, options = {}) {
             // เชื่อม ต่อ URL อย่างถูกต้อง โดยระวังเรื่อง slash ให้แล้ว
@@ -189,26 +197,82 @@
                 return l;
             })();
             const fallback = 'images/defaultprofile.jpg';
+            const cacheKey = 'auth_avatar';
+            const cachedAvatar = localStorage.getItem(cacheKey) || '';
+            if (cachedAvatar) {
+                link.href = Common.resolveAvatarUrl(cachedAvatar) || fallback;
+            }
             try {
                 const res = await Common.fetchWithAuth('/api/users/me');
                 const json = await res.json();
                 if (res.ok) {
-
                     const avatarUrl = json?.data?.avatar || '';
+                    if (avatarUrl) {
+                        localStorage.setItem(cacheKey, avatarUrl);
+                    } else {
+                        localStorage.removeItem(cacheKey);
+                    }
                     link.href = Common.resolveAvatarUrl(avatarUrl) || fallback;
                     return;
                 }
             } catch {}
-            link.href = fallback;
+            if (!cachedAvatar) {
+                link.href = fallback;
+            }
         },
 
         async renderProfileAvatar(avatarEl) {
-            if (!avatarEl) return;
-            const res = this.fetchWithAuth(`api/users/me`);
-            const json = await (await res).json();
-            const profile = json?.data || {};
-            const avatarUrl = profile?.avatar || '';
-            Common.updateTopAvatar(avatarUrl, avatarEl);
+            const target = avatarEl && avatarEl.length ? avatarEl : state.topAvatarEl;
+            if (!target || !target.length) return;
+
+            const avatarCacheKey = 'auth_avatar';
+            const nameCacheKey = 'auth_display_name';
+            const cachedAvatar = localStorage.getItem(avatarCacheKey) || '';
+            const cachedName = localStorage.getItem(nameCacheKey) || '';
+            if (cachedName) {
+                Common.updateAppTitle(cachedName);
+            }
+            if (cachedAvatar) {
+                Common.updateTopAvatar(cachedAvatar, target);
+            }
+
+            if (!Common.getToken()) {
+                localStorage.removeItem(avatarCacheKey);
+                localStorage.removeItem(nameCacheKey);
+                Common.updateTopAvatar(null, target);
+                Common.updateAppTitle('');
+                return;
+            }
+
+            try {
+                const res = await this.fetchWithAuth('/api/users/me');
+                const json = await res.json();
+                if (res.ok) {
+                    const profile = json?.data || {};
+                    const avatarUrl = profile?.avatar || '';
+                    const displayName = String(profile?.name || profile?.email || '').trim();
+                    if (avatarUrl) {
+                        localStorage.setItem(avatarCacheKey, avatarUrl);
+                    } else {
+                        localStorage.removeItem(avatarCacheKey);
+                    }
+                    if (displayName) {
+                        localStorage.setItem(nameCacheKey, displayName);
+                    } else {
+                        localStorage.removeItem(nameCacheKey);
+                    }
+                    Common.updateTopAvatar(avatarUrl, target);
+                    Common.updateAppTitle(displayName);
+                    return;
+                }
+            } catch {}
+
+            if (!cachedAvatar) {
+                Common.updateTopAvatar(null, target);
+            }
+            if (!cachedName) {
+                Common.updateAppTitle('');
+            }
         },
 
         applyMenuAuthorization(allowedCodes) {
@@ -285,6 +349,7 @@
             localStorage.clear();
             try { sessionStorage.clear(); } catch {}
             Common.updateTopAvatar(null);
+            Common.updateAppTitle('');
             if (typeof state.updateAuthUI === 'function') {
                 state.updateAuthUI(false);
             }
@@ -510,16 +575,23 @@
                 Common.loadMenuAuthorization(initialToken);
                 if (initialToken) {
                     Common.renderProfileAvatar(state.topAvatarEl);
+                } else {
+                    Common.updateAppTitle('');
                 }
             });
 
             window.addEventListener('storage', (event) => {
-                if (!['auth_token', 'auth_kpi_tools'].includes(event.key)) return;
+                if (!['auth_token', 'auth_kpi_tools', 'auth_display_name'].includes(event.key)) return;
                 const token = Common.getToken();
                 if (typeof state.updateAuthUI === 'function') {
                     state.updateAuthUI(!!token);
                 }
                 Common.loadMenuAuthorization(token);
+                if (token) {
+                    Common.renderProfileAvatar(state.topAvatarEl);
+                } else {
+                    Common.updateAppTitle('');
+                }
                 if (typeof window.rebuildDrawerMenu === 'function') {
                     window.rebuildDrawerMenu();
                 }

@@ -9,6 +9,8 @@ $(document).ready(function() {
     function closeLogin() {
         localStorage.removeItem('auth_token');
         localStorage.removeItem('auth_kpi_tools');
+        localStorage.removeItem('auth_avatar');
+        localStorage.removeItem('auth_display_name');
         if (typeof window.updateAuthUI === 'function') {
             window.updateAuthUI(false);
         }
@@ -17,6 +19,9 @@ $(document).ready(function() {
         }
         setMenuAuthorization();
         $('#avatar').attr('src', 'images/defaultprofile.jpg');
+        if (typeof window.Common?.updateAppTitle === 'function') {
+            window.Common.updateAppTitle('');
+        }
         $('#login').addClass('pagehidden');
     }
 
@@ -58,7 +63,7 @@ $(document).ready(function() {
             }
             //ไม่ต้องกลัว exception ปล่อยมันออกมาจะได้แก้ได้ 
             
-            Common.renderProfileAvatar($('#avatar'));
+            await Common.renderProfileAvatar($('#avatar'));
             await setMenuAuthorization();
             Common.setFavicon();
             $('#login').addClass('pagehidden');
