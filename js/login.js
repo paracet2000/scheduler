@@ -4,9 +4,12 @@ $(document).ready(function() {
         if (typeof window.rebuildDrawerMenu === 'function') {
             await window.rebuildDrawerMenu();
         }
+        if (typeof window.rebuildMenuGrid === 'function') {
+            await window.rebuildMenuGrid();
+        }
     }
 
-    function closeLogin() {
+    async function closeLogin() {
         localStorage.removeItem('auth_token');
         localStorage.removeItem('auth_kpi_tools');
         localStorage.removeItem('auth_avatar');
@@ -17,12 +20,15 @@ $(document).ready(function() {
         if (typeof window.Common?.loadMenuAuthorization === 'function') {
             window.Common.loadMenuAuthorization(null);
         }
-        setMenuAuthorization();
+        await setMenuAuthorization();
         $('#avatar').attr('src', 'images/defaultprofile.jpg');
         if (typeof window.Common?.updateAppTitle === 'function') {
             window.Common.updateAppTitle('');
         }
         $('#login').addClass('pagehidden');
+        if (typeof window.showMenuLayer === 'function') {
+            window.showMenuLayer();
+        }
     }
 
     async function authenticate() {
@@ -100,8 +106,9 @@ $(document).ready(function() {
             onClick: async () => {
                 const ok = await authenticate();
                 if (!ok) return;
-                if (typeof window.renderSchedule === 'function') {
-                    window.renderSchedule();
+                // Keep content layer hidden after login so card menu layer is visible.
+                if (typeof window.showMenuLayer === 'function') {
+                    window.showMenuLayer();
                 } else if (typeof window.showPage === 'function') {
                     window.showPage('personalDashboard');
                 }

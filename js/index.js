@@ -1,412 +1,132 @@
-// js/index.js
-$(document).ready(function() {
-    const GRID_MAX_ROWS = 25;
-    const GRID_ROW_HEIGHT = 25;
-    const GRID_HEIGHT = GRID_MAX_ROWS * GRID_ROW_HEIGHT + 10;
+$(document).ready(function () {
+    const MENU_DESCRIPTION_MAP = {
+        menuSignup: 'Create a new account and start using the platform.',
+        menuLogin: 'Sign in to access your available menus.'
+    };
+    const TAB_LABELS = {
+        popular: 'Popular',
+        schedule: 'Schedule',
+        'routine-data': 'Routine Data',
+        settings: 'Settings'
+    };
+    const MAX_USERS_PER_CARD = 10;
+    const AVATAR_VISIBLE = 6;
+    const TOP_POPULAR_LIMIT = 8;
+    const PRIORITY_MENUS = [
+        { code: 'menuSignup', label: 'Register', icon: 'RG', category: 'settings', clickCounter: 0, lastClickedAt: null },
+        { code: 'menuLogin', label: 'Login', icon: 'LG', category: 'settings', clickCounter: 0, lastClickedAt: null }
+    ];
+    const PALETTE = [
+        ['#60a5fa', '#2563eb'],
+        ['#22d3ee', '#3b82f6'],
+        ['#93c5fd', '#1d4ed8'],
+        ['#bfdbfe', '#0ea5e9'],
+        ['#38bdf8', '#1e40af']
+    ];
 
-    if (window.DevExpress?.ui?.dxDataGrid) {
-        DevExpress.ui.dxDataGrid.defaultOptions({
-            options: {
-                rowHeight: GRID_ROW_HEIGHT,
-                height: GRID_HEIGHT,
-                scrolling: {
-                    mode: 'virtual',
-                    rowRenderingMode: 'virtual'
-                },
-                paging: {
-                    pageSize: GRID_MAX_ROWS
-                },
-                editing: {
-                    useIcons: true,
-                    // Default popup form layout: single column (can be overridden per-grid)
-                    form: {
-                        colCount: 1,
-                        labelMode: 'floating'
-                    }
-                },
-                onInitialized: (e) => {
-                    const comp = e?.component;
-                    if (!comp) return;
+    let allMenus = [];
+    let allUsers = [];
+    let readableMenuCodes = new Set();
+    let isLoggedIn = false;
+    let activeTab = 'popular';
+    const MENU_AUTH_DEBUG = true;
+    const MAIN_CONTAINER_DEFAULT_TITLE = 'Menu Workspace';
+    const PAGE_TO_MENU_CODE = {
+        register: 'menuSignup',
+        login: 'menuLogin',
+        personalSettingPage: 'menuSettingsPersonal',
+        schedulerHead: 'menuSchedulerHead',
+        wardMember: 'menuWardMember',
+        schedule: 'menuSchedule',
+        change: 'menuChangeRequest',
+        userManagement: 'menuUserManagement',
+        config: 'menuSettingsSystem',
+        kpiEntry: 'menuKpiEntry',
+        kpiDefinition: 'menuKpiDefinition',
+        kpiDashboardSetting: 'menuKpiDashboardSetting',
+        kpiDashboard: 'menuKpiDashboard',
+        kpiTools: 'menuKpiTools',
+        commonReport: 'menuCommonReport',
+        shiftPattern: 'menuShiftPattern',
+        userRights: 'menuUserRights',
+        attendanceSync: 'menuTimeAttendanceSync'
+    };
 
-                    const scrolling = comp.option('scrolling') || {};
-                    comp.option('scrolling', {
-                        ...scrolling,
-                        mode: 'virtual',
-                        rowRenderingMode: 'virtual'
-                    });
+    function setMainContainerTitle(text) {
+        const titleEl = $('#mainContainerTitle');
+        if (!titleEl.length) return;
+        titleEl.text(String(text || MAIN_CONTAINER_DEFAULT_TITLE).trim() || MAIN_CONTAINER_DEFAULT_TITLE);
+    }
 
-                    const paging = comp.option('paging') || {};
-                    comp.option('paging', {
-                        ...paging,
-                        pageSize: GRID_MAX_ROWS
-                    });
+    function findMenuByCode(code) {
+        const normalized = normalizeMenuCode(code);
+        return allMenus.find((menu) => normalizeMenuCode(menu.code) === normalized) || null;
+    }
 
-                    const editing = comp.option('editing') || {};
-                    const allowPopup = !!(editing.allowAdding || editing.allowUpdating);
-                    if (allowPopup) {
-                        comp.option('editing', {
-                            ...editing,
-                            mode: 'popup',
-                            popup: {
-                                showTitle: true,
-                                title: 'Data Management',
-                                width: 760,
-                                maxHeight: '85vh',
-                                ...(editing.popup || {})
-                            },
-                            form: {
-                                colCount: 1,
-                                labelMode: 'floating',
-                                ...(editing.form || {})
-                            }
-                        });
-                    }
+    function setMainContainerTitleFromMenu(menu) {
+        const label = String(menu?.label || normalizeMenuCode(menu?.code) || '').trim();
+        const description = String(menu?.description || resolveMenuDescription(menu?.code, label) || '').trim();
+        if (label && description) {
+            setMainContainerTitle(`${label} - ${description}`);
+            return;
+        }
+        if (label) {
+            setMainContainerTitle(label);
+            return;
+        }
+        setMainContainerTitle(MAIN_CONTAINER_DEFAULT_TITLE);
+    }
 
-                    comp.option('height', GRID_HEIGHT);
-                },
-                onContentReady: (e) => {
-                    const comp = e?.component;
-                    if (!comp || typeof comp.getDataSource !== 'function') return;
-                    const ds = comp.getDataSource();
-                    let total = 0;
-                    if (ds) {
-                        const tc = typeof ds.totalCount === 'function' ? ds.totalCount() : null;
-                        if (typeof tc === 'number' && !Number.isNaN(tc)) {
-                            total = tc;
-                        } else if (typeof ds.items === 'function') {
-                            total = ds.items().length;
-                        } else if (Array.isArray(ds._items)) {
-                            total = ds._items.length;
-                        }
-                    }
-                    const filterRow = comp.option('filterRow') || {};
-                    comp.option('filterRow', { ...filterRow, visible: total > GRID_MAX_ROWS });
-                }
-            }
+    function logOpenStateSummary(reason = '') {
+        if (!MENU_AUTH_DEBUG) return;
+        const stateByCode = {};
+        allMenus.forEach((menu) => {
+            const key = normalizeMenuCode(menu.code);
+            if (!key) return;
+            stateByCode[key] = {
+                code: menu.code,
+                canOpen: canOpenMenu(menu)
+            };
+        });
+        console.log('[menu-grid] open-state summary', {
+            reason,
+            isLoggedIn,
+            allowedReadCodes: Array.from(readableMenuCodes),
+            register: stateByCode.menuSignup || { code: null, canOpen: !isLoggedIn },
+            login: stateByCode.menuLogin || { code: null, canOpen: !isLoggedIn },
+            logout: stateByCode.menuLogout || { code: null, canOpen: isLoggedIn }
         });
     }
 
-    // Global dxForm defaults (affects DataGrid popup form too)
-    if (window.DevExpress?.ui?.dxForm) {
-        DevExpress.ui.dxForm.defaultOptions({
-            options: {
-                labelMode: 'floating'
-            }
-        });
+    function showMainContainer() {
+        const container = $('#mainContainer');
+        if (!container.length) return;
+        container.removeClass('main-container--hidden').attr('aria-hidden', 'false');
+    }
+
+    function showMenuLayer() {
+        const container = $('#mainContainer');
+        if (!container.length) return;
+        container.addClass('main-container--hidden').attr('aria-hidden', 'true');
+        $('.page').addClass('pagehidden');
+        setMainContainerTitle(MAIN_CONTAINER_DEFAULT_TITLE);
     }
 
     function showPage(pageId) {
+        const target = String(pageId || '').trim();
+        if (!target) return;
+        const pageEl = $(`#${target}`);
+        if (!pageEl.length) return;
+        showMainContainer();
         $('.page').addClass('pagehidden');
-        $(`#${pageId}`).removeClass('pagehidden');
-    }
+        pageEl.removeClass('pagehidden');
 
-    const DRAWER_MODE_EXPANDED = 0;
-    const DRAWER_MODE_TOGGLE_ONLY = 1;
-    let currentDrawerMode = DRAWER_MODE_EXPANDED;
-    const DRAWER_WIDTH_STORAGE_KEY = 'scheduler.drawer.width';
-    const DRAWER_RESIZE_STEP = 16;
-    const normalizeMenuCode = (code) => String(code || '').trim().replace(/^\d+/, '');
-    const rootStyle = window.getComputedStyle(document.documentElement);
-    const parseCssPx = (cssValue, fallback) => {
-        const next = Number.parseFloat(String(cssValue || '').trim());
-        return Number.isFinite(next) ? next : fallback;
-    };
-    const DEFAULT_DRAWER_WIDTH = parseCssPx(rootStyle.getPropertyValue('--drawer-width'), 220);
-    const DRAWER_MIN_WIDTH = parseCssPx(rootStyle.getPropertyValue('--drawer-width-min'), 180);
-    const DRAWER_MAX_WIDTH = parseCssPx(rootStyle.getPropertyValue('--drawer-width-max'), 420);
-    let expandedDrawerWidth = DEFAULT_DRAWER_WIDTH;
-
-    function isDesktopLayout() {
-        return !window.matchMedia('(max-width: 900px)').matches;
-    }
-
-    function clampDrawerWidth(width) {
-        return Math.max(DRAWER_MIN_WIDTH, Math.min(DRAWER_MAX_WIDTH, width));
-    }
-
-    function setExpandedDrawerWidth(width, persist = true) {
-        const clampedWidth = clampDrawerWidth(width);
-        expandedDrawerWidth = clampedWidth;
-        document.documentElement.style.setProperty('--drawer-width', `${clampedWidth}px`);
-        if (!persist) return;
-        try {
-            localStorage.setItem(DRAWER_WIDTH_STORAGE_KEY, String(clampedWidth));
-        } catch {}
-    }
-
-    function restoreDrawerWidth() {
-        try {
-            const raw = localStorage.getItem(DRAWER_WIDTH_STORAGE_KEY);
-            const parsed = Number(raw);
-            if (!Number.isFinite(parsed)) {
-                setExpandedDrawerWidth(DEFAULT_DRAWER_WIDTH, false);
-                return;
-            }
-            setExpandedDrawerWidth(parsed, false);
-        } catch {
-            setExpandedDrawerWidth(DEFAULT_DRAWER_WIDTH, false);
+        const mappedCode = PAGE_TO_MENU_CODE[target];
+        if (mappedCode) {
+            const mappedMenu = findMenuByCode(mappedCode);
+            if (mappedMenu) setMainContainerTitleFromMenu(mappedMenu);
         }
     }
-
-    function syncDrawerSplitterState() {
-        const splitter = $('#drawerSplitter');
-        if (!splitter.length) return;
-        const isDisabled = !isDesktopLayout() || currentDrawerMode === DRAWER_MODE_TOGGLE_ONLY;
-        splitter.toggleClass('is-disabled', isDisabled);
-        splitter.attr('aria-disabled', String(isDisabled));
-    }
-
-    function applyDrawerState(mode) {
-        const drawer = $('#drawer');
-        drawer.removeClass('drawer--icon drawer--icon-text drawer--text drawer--toggle-only');
-        if (mode === DRAWER_MODE_TOGGLE_ONLY) {
-            drawer.addClass('drawer--toggle-only');
-            syncDrawerSplitterState();
-            return;
-        }
-        drawer.addClass('drawer--icon-text');
-        syncDrawerSplitterState();
-    }
-
-    function bindDrawerSplitter() {
-        const splitter = document.getElementById('drawerSplitter');
-        const drawer = document.getElementById('drawer');
-        if (!splitter || !drawer) return;
-
-        let isResizing = false;
-        let pointerId = null;
-        let startX = 0;
-        let startWidth = 0;
-
-        const stopResize = (event) => {
-            if (!isResizing) return;
-            isResizing = false;
-            document.body.classList.remove('is-resizing-drawer');
-            if (pointerId !== null && typeof splitter.releasePointerCapture === 'function') {
-                try { splitter.releasePointerCapture(pointerId); } catch {}
-            }
-            pointerId = null;
-            if (event?.preventDefault) event.preventDefault();
-        };
-
-        splitter.addEventListener('pointerdown', (event) => {
-            if (!isDesktopLayout() || currentDrawerMode === DRAWER_MODE_TOGGLE_ONLY) return;
-            isResizing = true;
-            pointerId = event.pointerId;
-            startX = event.clientX;
-            startWidth = drawer.getBoundingClientRect().width;
-            document.body.classList.add('is-resizing-drawer');
-            if (typeof splitter.setPointerCapture === 'function') {
-                try { splitter.setPointerCapture(pointerId); } catch {}
-            }
-            event.preventDefault();
-        });
-
-        splitter.addEventListener('pointermove', (event) => {
-            if (!isResizing) return;
-            const deltaX = event.clientX - startX;
-            setExpandedDrawerWidth(startWidth + deltaX);
-            event.preventDefault();
-        });
-
-        splitter.addEventListener('pointerup', stopResize);
-        splitter.addEventListener('pointercancel', stopResize);
-        splitter.addEventListener('dblclick', () => {
-            if (!isDesktopLayout()) return;
-            setExpandedDrawerWidth(DEFAULT_DRAWER_WIDTH);
-        });
-
-        splitter.addEventListener('keydown', (event) => {
-            if (!isDesktopLayout() || currentDrawerMode === DRAWER_MODE_TOGGLE_ONLY) return;
-            if (event.key === 'ArrowLeft') {
-                setExpandedDrawerWidth(expandedDrawerWidth - DRAWER_RESIZE_STEP);
-                event.preventDefault();
-            }
-            if (event.key === 'ArrowRight') {
-                setExpandedDrawerWidth(expandedDrawerWidth + DRAWER_RESIZE_STEP);
-                event.preventDefault();
-            }
-            if (event.key === 'Home') {
-                setExpandedDrawerWidth(DRAWER_MIN_WIDTH);
-                event.preventDefault();
-            }
-            if (event.key === 'End') {
-                setExpandedDrawerWidth(DRAWER_MAX_WIDTH);
-                event.preventDefault();
-            }
-        });
-
-        window.addEventListener('resize', syncDrawerSplitterState);
-    }
-
-    function normalizeDrawerModeInput(state) {
-        if (state === 'toggle-only' || state === 'collapsed') return DRAWER_MODE_TOGGLE_ONLY;
-        if (state === 'expanded' || state === 'icon-text') return DRAWER_MODE_EXPANDED;
-
-        const next = Number(state);
-        if (Number.isNaN(next)) return currentDrawerMode;
-        // Backward compatibility with legacy states:
-        // 0/1/2 => expanded, 3 => toggle-only
-        return next === 3 ? DRAWER_MODE_TOGGLE_ONLY : DRAWER_MODE_EXPANDED;
-    }
-
-    function resolveMenuIconText({ icon, label, displayCode, code }) {
-        const rawIcon = String(icon || '').trim();
-        if (rawIcon) {
-            // keep it short to fit 28x28 icon box
-            return rawIcon.length > 2 ? rawIcon.slice(0, 2) : rawIcon;
-        }
-        const base = String(label || displayCode || code || 'M').trim();
-        return (base ? base.charAt(0) : 'M').toUpperCase();
-    }
-
-    async function buildDrawerMenu() {
-        const drawerMenu = $('#drawerMenu');
-        if (!drawerMenu.length) return;
-        drawerMenu.empty();
-        const token = Common?.getToken?.();
-
-        let menus = [];
-        try {
-            const res = await fetch(Common.buildApiUrl('/api/menus'));
-            const json = await res.json();
-            if (res.ok && Array.isArray(json.data)) {
-                menus = json.data.map((m) => ({
-                    code: m.mnu_code,
-                    label: m.mnu_description,
-                    icon: m.mnu_icon
-                })).sort((a, b) => String(a.code).localeCompare(String(b.code)));
-            }
-        } catch {}
-
-        const allowedReadCodes = new Set();
-        if (token) {
-            try {
-                const res = await fetch(Common.buildApiUrl('/api/menu-authorize/me'), {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                const json = await res.json();
-                if (res.ok && Array.isArray(json.data)) {
-                    json.data
-                        .filter((m) => Number(m.acc_read) === 1)
-                        .forEach((m) => {
-                            const rawCode = String(m.mnu_code || '').trim();
-                            const normalized = normalizeMenuCode(rawCode);
-                            if (rawCode) allowedReadCodes.add(rawCode);
-                            if (normalized) allowedReadCodes.add(normalized);
-                        });
-                }
-            } catch {}
-        }
-
-        const palette = [
-            ['#38bdf8', '#fbbf24'],
-            ['#a7f3d0', '#60a5fa'],
-            ['#fda4af', '#fde68a'],
-            ['#c4b5fd', '#f9a8d4']
-        ];
-
-        const visibleMenus = menus.filter((m) => {
-            const rawCode = String(m.code || '').trim();
-            const normalized = normalizeMenuCode(rawCode);
-            if (normalized === 'menuSignup' || normalized === 'menuLogin') return !token;
-            if (normalized === 'menuLogout') return !!token;
-            if (!token) return false;
-            return allowedReadCodes.has(rawCode) || allowedReadCodes.has(normalized);
-        });
-
-        visibleMenus.forEach((m, idx) => {
-            const item = $('<div>', { class: 'drawer-item', 'data-code': m.code });
-            const icon = $('<div>', { class: 'drawer-item-icon' });
-            const displayCode = normalizeMenuCode(m.code);
-            const labelText = m.label || displayCode || m.code;
-            const label = $('<div>', { class: 'drawer-item-label', text: labelText });
-
-            const colors = palette[idx % palette.length];
-            icon.css('background', `linear-gradient(135deg, ${colors[0]}, ${colors[1]})`);
-            icon.text(resolveMenuIconText({ icon: m.icon, label: labelText, displayCode, code: m.code }));
-
-            item.append(icon, label);
-            item.on('click', () => {
-                currentDrawerMode = DRAWER_MODE_TOGGLE_ONLY;
-                applyDrawerState(currentDrawerMode);
-                if (typeof window.drawerAction === 'function') {
-                    window.drawerAction(displayCode || m.code);
-                }
-            });
-            drawerMenu.append(item);
-        });
-        applyDrawerState(currentDrawerMode);
-    }
-
-    window.drawerAction = function drawerAction(menuCode) {
-        console.log('Drawer action triggered for menu code:', menuCode);
-        if (menuCode !== 'menuSignup' && menuCode !== 'menuLogin') {
-            if (!Common?.getToken?.()) {
-                if (typeof window.renderLogin === 'function') {
-                    window.renderLogin();
-                }
-                return;
-            }
-        }
-
-        const actions = {
-            menuSignup: () => window.renderRegister?.(),
-            menuSettingsPersonal: () => window.renderPersonalSettings?.(),
-            menuSettingsSystem: () => window.renderConfigManagement?.(),
-            menuSchedulerHead: () => window.renderSchedulerHead?.(),
-            menuWardMember: () => window.renderWardMember?.(),
-            menuSchedule: () => window.renderSchedule?.(),
-            menuChangeRequest: () => window.renderChangeRequest?.(),
-            menuScheduleSummary: () => window.renderScheduleSummary?.(),
-            menuKpiEntry: () => window.renderKpiEntry?.(),
-            menuKpiDefinition: () => window.renderKpiDefinitions?.(),
-            menuKpiDashboardSetting: () => window.renderKpiDashboardSetting?.(),
-            menuKpiDashboard: () => window.renderKpiDashboard?.(),
-            menuKpiTools: () => window.renderKpiTools?.(),
-            menuCommonReport: () => window.renderCommonReport?.(),
-            menuUserManagement: () => window.renderUserManagement?.(),
-            menuShiftPattern: () => window.renderShiftPattern?.(),
-            menuUserShiftRate: () => window.renderUserShiftRate?.(),
-            menuUserRights: () => window.renderUserRights?.(),
-            menuTimeAttendanceSync: () => {
-                if (typeof window.renderAttendanceSync === 'function') {
-                    window.renderAttendanceSync();
-                }
-            },
-            menuLogin: () => window.renderLogin?.(),
-            menuLogout: () => window.Common?.logout?.()
-        };
-
-        if (typeof actions[menuCode] === 'function') {
-            actions[menuCode]();
-        } else {
-            console.warn('No action handler for menu code:', menuCode);
-        }
-    };
-
-    $('#drawerToggle').on('click', async () => {
-        currentDrawerMode = currentDrawerMode === DRAWER_MODE_EXPANDED
-            ? DRAWER_MODE_TOGGLE_ONLY
-            : DRAWER_MODE_EXPANDED;
-        applyDrawerState(currentDrawerMode);
-    });
-
-    restoreDrawerWidth();
-    bindDrawerSplitter();
-    syncDrawerSplitterState();
-    buildDrawerMenu();
-    if (Common?.getToken?.()) {
-        Common.renderProfileAvatar($('#avatar'));
-        Common.setFavicon();
-    }
-    window.rebuildDrawerMenu = async function rebuildDrawerMenu() {
-        await buildDrawerMenu();
-    };
-    window.setDrawerState = async function setDrawerState(state) {
-        currentDrawerMode = normalizeDrawerModeInput(state);
-        applyDrawerState(currentDrawerMode);
-    };
 
     function renderRegister() {
         showPage('register');
@@ -446,37 +166,27 @@ $(document).ready(function() {
             onClick: async () => {
                 if (isSubmitting) return;
                 const form = $('#registerForm').dxForm('instance');
-                if (!form.validate().isValid) return;
+                if (!form || !form.validate().isValid) return;
 
                 const data = form.option('formData');
                 try {
                     isSubmitting = true;
                     const btn = $('#btnSave').dxButton('instance');
                     if (btn) btn.option('disabled', true);
-                    const res = await fetch(Common.buildApiUrl('/api/auth/register'), {
+                    const res = await fetch(getApiUrl('/api/auth/register'), {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(data)
                     });
-
                     const json = await res.json();
+                    if (!res.ok) throw new Error(json.message || 'Register failed');
 
-                    if (!res.ok) {
-                        throw new Error(json.message || 'Register failed');
-                    }
-
-                    DevExpress.ui.notify(
-                        'Register success! Please verify your email.',
-                        'success',
-                        3000
-                    );
+                    DevExpress.ui.notify('Register success! Please verify your email.', 'success', 3000);
                     if (typeof window.renderLogin === 'function') {
                         window.renderLogin();
-                    } else {
-                        showPage('login');
                     }
                 } catch (err) {
-                    DevExpress.ui.notify(err.message, 'error', 3000);
+                    DevExpress.ui.notify(err.message || 'Register failed', 'error', 3000);
                 } finally {
                     isSubmitting = false;
                     const btn = $('#btnSave').dxButton('instance');
@@ -489,16 +199,482 @@ $(document).ready(function() {
             text: 'Close',
             type: 'danger',
             width: 100,
-            onClick() {
+            onClick: () => {
                 if (typeof window.renderLogin === 'function') {
                     window.renderLogin();
-                } else {
-                    showPage('login');
+                    return;
                 }
+                showMenuLayer();
             }
         });
     }
 
+    function normalizeMenuCode(code) {
+        return String(code || '').trim().replace(/^\d+/, '');
+    }
+
+    function getApiUrl(path) {
+        if (window.Common && typeof window.Common.buildApiUrl === 'function') {
+            return window.Common.buildApiUrl(path);
+        }
+        return path;
+    }
+
+    function compareMenusByPopularity(a, b) {
+        const aCounter = Number(a?.clickCounter || 0);
+        const bCounter = Number(b?.clickCounter || 0);
+        if (aCounter !== bCounter) return bCounter - aCounter;
+
+        const aTime = new Date(a?.lastClickedAt || 0).getTime();
+        const bTime = new Date(b?.lastClickedAt || 0).getTime();
+        if (aTime !== bTime) return bTime - aTime;
+
+        return String(a?.code || '').localeCompare(String(b?.code || ''));
+    }
+
+    function resolveMenuIconText(icon, label, code) {
+        const rawIcon = String(icon || '').trim();
+        if (rawIcon) return rawIcon.length > 2 ? rawIcon.slice(0, 2) : rawIcon;
+        const base = String(label || code || 'M').trim();
+        return (base ? base.charAt(0) : 'M').toUpperCase();
+    }
+
+    function resolveMenuDescription(code, label) {
+        const normalized = normalizeMenuCode(code);
+        if (MENU_DESCRIPTION_MAP[normalized]) return MENU_DESCRIPTION_MAP[normalized];
+        return `Open ${label || normalized || code}.`;
+    }
+
+    function normalizeTabName(value) {
+        const raw = String(value || '').trim().toLowerCase();
+        if (!raw) return '';
+        if (raw === 'routine data' || raw === 'routine_data') return 'routine-data';
+        return raw;
+    }
+
+    function resolveCategoryFromLayout(layoutMap, code, fallback = 'routine-data') {
+        const rawCode = String(code || '').trim();
+        const normalizedCode = normalizeMenuCode(rawCode);
+        const byRaw = normalizeTabName(layoutMap.get(rawCode));
+        if (byRaw && TAB_LABELS[byRaw]) return byRaw;
+        const byNormalized = normalizeTabName(layoutMap.get(normalizedCode));
+        if (byNormalized && TAB_LABELS[byNormalized]) return byNormalized;
+        return fallback;
+    }
+
+    function dedupeMenus(menus) {
+        const seen = new Set();
+        return menus.filter((menu) => {
+            const normalized = normalizeMenuCode(menu.code);
+            if (!normalized || seen.has(normalized)) return false;
+            seen.add(normalized);
+            return true;
+        });
+    }
+
+    function normalizeUser(user) {
+        const id = String(user?._id || user?.id || user?.userId || user?.email || user?.name || '').trim();
+        if (!id) return null;
+        return {
+            id,
+            name: String(user?.name || user?.email || 'User').trim(),
+            avatar: String(user?.avatar || '').trim()
+        };
+    }
+
+    function hashString(text) {
+        let hash = 0;
+        for (let i = 0; i < text.length; i += 1) {
+            hash = ((hash * 31) + text.charCodeAt(i)) >>> 0;
+        }
+        return hash;
+    }
+
+    function pickUsersForMenu(menu, users, limit = MAX_USERS_PER_CARD) {
+        const clickers = Array.isArray(menu?.clickers) ? menu.clickers : [];
+        if (clickers.length) {
+            const seen = new Set();
+            const picked = [];
+            clickers.forEach((u) => {
+                const normalized = normalizeUser(u);
+                if (!normalized) return;
+                if (seen.has(normalized.id)) return;
+                seen.add(normalized.id);
+                picked.push(normalized);
+            });
+            return picked.slice(0, limit);
+        }
+        if (!Array.isArray(users) || !users.length) return [];
+        const baseHash = hashString(normalizeMenuCode(menu?.code));
+        const picked = [];
+        for (let i = 0; i < Math.min(limit, users.length); i += 1) {
+            const idx = (baseHash + i) % users.length;
+            picked.push(users[idx]);
+        }
+        return picked;
+    }
+
+    function getInitialLetter(text) {
+        const value = String(text || '').trim();
+        return value ? value.charAt(0).toUpperCase() : 'U';
+    }
+
+    async function fetchMenuLayoutMap() {
+        try {
+            const res = await fetch(getApiUrl('/api/menu-layouts'));
+            const json = await res.json();
+            if (!res.ok || !Array.isArray(json.data)) return new Map();
+            const map = new Map();
+            json.data.forEach((row) => {
+                const code = String(row?.mnu_code || '').trim();
+                const tabName = normalizeTabName(row?.tab_name);
+                const normalizedCode = normalizeMenuCode(code);
+                if (code && tabName) map.set(code, tabName);
+                if (normalizedCode && tabName) map.set(normalizedCode, tabName);
+            });
+            return map;
+        } catch {
+            return new Map();
+        }
+    }
+
+    async function fetchMenus(layoutMap = new Map()) {
+        try {
+            const res = await fetch(getApiUrl('/api/menus'));
+            const json = await res.json();
+            if (!res.ok || !Array.isArray(json.data)) return [];
+            return json.data
+                .map((m) => ({
+                    code: String(m?.mnu_code || m?.code || '').trim(),
+                    label: String(m?.mnu_name || m?.mnu_description || m?.label || m?.mnu_code || '').trim(),
+                    description: String(m?.mnu_description || '').trim(),
+                    icon: String(m?.mnu_icon || m?.icon || '').trim(),
+                    clickCounter: Number(m?.mnu_clickCounter || 0),
+                    lastClickedAt: m?.mnu_lastClickedAt ? new Date(m.mnu_lastClickedAt).toISOString() : null,
+                    clickers: Array.isArray(m?.last10Clicker) ? m.last10Clicker.map(normalizeUser).filter(Boolean) : [],
+                    category: resolveCategoryFromLayout(layoutMap, String(m?.mnu_code || m?.code || '').trim())
+                }))
+                .filter((m) => m.code)
+                .sort((a, b) => a.code.localeCompare(b.code));
+        } catch {
+            return [];
+        }
+    }
+
+    async function fetchUsers() {
+        if (!window.Common || typeof window.Common.getToken !== 'function' || !window.Common.getToken()) {
+            return [];
+        }
+        try {
+            const res = await window.Common.fetchWithAuth('/api/users');
+            const json = await res.json();
+            if (!res.ok || !Array.isArray(json.data)) return [];
+            return json.data.map(normalizeUser).filter(Boolean);
+        } catch {
+            return [];
+        }
+    }
+
+    async function fetchReadableMenuCodes() {
+        const token = window.Common?.getToken?.();
+        if (!token) {
+            if (MENU_AUTH_DEBUG) {
+                console.log('[menu-grid] fetchReadableMenuCodes: no token');
+            }
+            return new Set();
+        }
+        try {
+            const res = await window.Common.fetchWithAuth('/api/menu-authorize/me');
+            const json = await res.json();
+            if (MENU_AUTH_DEBUG) {
+                console.log('[menu-grid] /api/menu-authorize/me response', {
+                    ok: res.ok,
+                    status: res.status,
+                    rows: Array.isArray(json?.data) ? json.data.length : 0,
+                    data: json?.data
+                });
+            }
+            if (!res.ok || !Array.isArray(json.data)) return new Set();
+            const allowed = new Set();
+            json.data.forEach((item) => {
+                if (Number(item?.acc_read) !== 1) return;
+                const rawCode = String(item?.mnu_code || '').trim();
+                const normalizedCode = normalizeMenuCode(rawCode);
+                if (rawCode) allowed.add(rawCode);
+                if (normalizedCode) allowed.add(normalizedCode);
+            });
+            if (MENU_AUTH_DEBUG) {
+                console.log('[menu-grid] allowed read menu codes', Array.from(allowed));
+            }
+            return allowed;
+        } catch {
+            if (MENU_AUTH_DEBUG) {
+                console.log('[menu-grid] fetchReadableMenuCodes failed');
+            }
+            return new Set();
+        }
+    }
+
+    function canOpenMenu(menu) {
+        const rawCode = String(menu?.code || '').trim();
+        const normalizedCode = normalizeMenuCode(rawCode);
+        if (!normalizedCode) return false;
+
+        if (normalizedCode === 'menuSignup' || normalizedCode === 'menuLogin') {
+            return !isLoggedIn;
+        }
+        if (normalizedCode === 'menuLogout') {
+            return isLoggedIn;
+        }
+        if (!isLoggedIn) return false;
+
+        return readableMenuCodes.has(rawCode) || readableMenuCodes.has(normalizedCode);
+    }
+
+    function buildMenuList(dbMenus) {
+        const byNormalized = new Map(
+            dbMenus.map((m) => [normalizeMenuCode(m.code), m])
+        );
+        const normalizedPriority = new Set(PRIORITY_MENUS.map((m) => normalizeMenuCode(m.code)));
+
+        const head = PRIORITY_MENUS.map((p) => {
+            const matched = byNormalized.get(normalizeMenuCode(p.code));
+            if (!matched) return p;
+            return {
+                ...matched,
+                label: matched.label || p.label,
+                icon: matched.icon || p.icon,
+                category: matched.category || p.category
+            };
+        });
+        const tail = dbMenus.filter((m) => !normalizedPriority.has(normalizeMenuCode(m.code)));
+        return dedupeMenus([...head, ...tail]);
+    }
+
+    function filterMenusByTab(menus, tab) {
+        if (tab === 'popular') {
+            return [...menus].sort(compareMenusByPopularity).slice(0, TOP_POPULAR_LIMIT);
+        }
+        if (tab === 'schedule') return menus.filter((m) => m.category === 'schedule');
+        if (tab === 'routine-data') return menus.filter((m) => m.category === 'routine-data');
+        if (tab === 'settings') return menus.filter((m) => m.category === 'settings');
+        return menus;
+    }
+
+    function updateToolbarMeta(count, tab) {
+        const label = TAB_LABELS[tab] || TAB_LABELS.popular;
+        $('#menuToolbarMeta').text(`${label} (${count})`);
+    }
+
+    function bindTabs() {
+        $('#menuTabs').on('click', '.menu-tab', function () {
+            const tab = String($(this).data('tab') || '').trim() || 'popular';
+            activeTab = tab;
+            $('#menuTabs .menu-tab').removeClass('is-active');
+            $(this).addClass('is-active');
+            render();
+        });
+    }
+
+    function createAvatarNode(user) {
+        const node = $('<div>', {
+            class: 'menu-user-avatar',
+            title: user.name || 'User'
+        });
+        const resolved = window.Common?.resolveAvatarUrl?.(user.avatar) || '';
+        if (resolved) {
+            node.addClass('has-image');
+            const img = $('<img>', { src: resolved, alt: user.name || 'User avatar', loading: 'lazy' });
+            img.on('error', () => {
+                node.removeClass('has-image');
+                node.empty().text(getInitialLetter(user.name));
+            });
+            node.append(img);
+            return node;
+        }
+        node.text(getInitialLetter(user.name));
+        return node;
+    }
+
+    function renderCardFooter(card, menu, users) {
+        const footer = $('<div>', { class: 'menu-card-footer' });
+        const left = $('<div>', { class: 'menu-card-users' });
+        const stack = $('<div>', { class: 'menu-user-stack' });
+        const list = pickUsersForMenu(menu, users, MAX_USERS_PER_CARD);
+        const visible = list.slice(0, AVATAR_VISIBLE);
+
+        if (!visible.length) {
+            stack.append($('<div>', { class: 'menu-user-avatar menu-user-avatar--ghost', text: '-' }));
+        } else {
+            visible.forEach((user) => stack.append(createAvatarNode(user)));
+            if (list.length > visible.length) {
+                stack.append($('<div>', {
+                    class: 'menu-user-avatar menu-user-avatar--more',
+                    text: `+${list.length - visible.length}`
+                }));
+            }
+        }
+
+        left.append(stack, $('<div>', { class: 'menu-card-users-text', text: 'Last 10 users' }));
+        const canOpen = canOpenMenu(menu);
+        const action = $('<button>', {
+            class: 'menu-card-action',
+            type: 'button',
+            text: 'Open',
+            disabled: !canOpen,
+            'aria-disabled': String(!canOpen)
+        });
+        if (!canOpen) action.addClass('is-disabled');
+        action.on('click', () => handleOpenMenu(menu));
+        footer.append(left, action);
+        card.append(footer);
+    }
+
+    async function trackMenuClick(menu) {
+        const token = window.Common?.getToken?.();
+        if (!token) return null;
+        try {
+            const code = encodeURIComponent(String(menu?.code || '').trim());
+            const res = await window.Common.fetchWithAuth(`/api/menus/${code}/click`, { method: 'POST' });
+            const json = await res.json();
+            if (!res.ok || !json?.data) return null;
+            return json.data;
+        } catch {
+            return null;
+        }
+    }
+
+    function applyClickResult(menu, data) {
+        if (!menu || !data) return;
+        menu.clickCounter = Number(data?.mnu_clickCounter || menu.clickCounter || 0);
+        menu.lastClickedAt = data?.mnu_lastClickedAt || menu.lastClickedAt || null;
+        menu.clickers = Array.isArray(data?.last10Clicker)
+            ? data.last10Clicker.map(normalizeUser).filter(Boolean)
+            : menu.clickers;
+    }
+
+    function invokeMenuAction(menu) {
+        const normalized = normalizeMenuCode(menu?.code);
+        const resolvedMenu = menu?.label ? menu : (findMenuByCode(normalized) || menu);
+        setMainContainerTitleFromMenu(resolvedMenu);
+        const actions = {
+            menuSignup: () => window.renderRegister?.(),
+            menuSettingsPersonal: () => window.renderPersonalSettings?.(),
+            menuSettingsSystem: () => (window.renderSystemSettings || window.renderConfigManagement)?.(),
+            menuSchedulerHead: () => window.renderSchedulerHead?.(),
+            menuWardMember: () => window.renderWardMember?.(),
+            menuSchedule: () => window.renderSchedule?.(),
+            menuChangeRequest: () => window.renderChangeRequest?.(),
+            menuScheduleSummary: () => window.renderScheduleSummary?.(),
+            menuKpiEntry: () => window.renderKpiEntry?.(),
+            menuKpiDefinition: () => window.renderKpiDefinitions?.(),
+            menuKpiDashboardSetting: () => window.renderKpiDashboardSetting?.(),
+            menuKpiDashboard: () => window.renderKpiDashboard?.(),
+            menuKpiTools: () => window.renderKpiTools?.(),
+            menuCommonReport: () => window.renderCommonReport?.(),
+            menuUserManagement: () => window.renderUserManagement?.(),
+            menuShiftPattern: () => window.renderShiftPattern?.(),
+            menuUserShiftRate: () => window.renderUserShiftRate?.(),
+            menuUserRights: () => window.renderUserRights?.(),
+            menuTimeAttendanceSync: () => window.renderAttendanceSync?.(),
+            menuLogin: () => window.renderLogin?.(),
+            menuLogout: () => window.Common?.logout?.()
+        };
+
+        const action = actions[normalized];
+        if (typeof action === 'function') {
+            action();
+            return;
+        }
+        DevExpress?.ui?.notify?.(`No action handler for ${normalized}`, 'warning', 2000);
+    }
+
+    async function handleOpenMenu(menu) {
+        if (!canOpenMenu(menu)) return;
+        const clickResult = await trackMenuClick(menu);
+        applyClickResult(menu, clickResult);
+        invokeMenuAction(menu);
+        render();
+    }
+
+    function renderMenuCards(menus, users) {
+        const grid = $('#menuGrid');
+        if (!grid.length) return;
+        grid.empty();
+
+        if (!menus.length) {
+            grid.append($('<div>', { class: 'menu-empty', text: 'No menu data' }));
+            return;
+        }
+
+        menus.forEach((menu, idx) => {
+            const colors = PALETTE[idx % PALETTE.length];
+            const iconText = resolveMenuIconText(menu.icon, menu.label, menu.code);
+            const labelText = menu.label || menu.code;
+
+            const card = $('<article>', { class: 'menu-card', 'data-code': menu.code, title: labelText });
+            const icon = $('<div>', { class: 'menu-card-icon', text: iconText });
+            icon.css('background', `linear-gradient(135deg, ${colors[0]}, ${colors[1]})`);
+
+            card.append(icon);
+            card.append($('<h3>', { class: 'menu-card-name', text: labelText }));
+            card.append($('<p>', {
+                class: 'menu-card-desc',
+                text: menu.description || resolveMenuDescription(menu.code, labelText)
+            }));
+            card.append($('<div>', { class: 'menu-card-divider' }));
+            renderCardFooter(card, menu, users);
+
+            grid.append(card);
+        });
+    }
+
+    function render() {
+        const filtered = filterMenusByTab(allMenus, activeTab);
+        updateToolbarMeta(filtered.length, activeTab);
+        renderMenuCards(filtered, allUsers);
+    }
+
+    async function initMenuGrid() {
+        isLoggedIn = !!window.Common?.getToken?.();
+        const [layoutMap, users, allowedCodes] = await Promise.all([
+            fetchMenuLayoutMap(),
+            fetchUsers(),
+            fetchReadableMenuCodes()
+        ]);
+        const dbMenus = await fetchMenus(layoutMap);
+        allMenus = buildMenuList(dbMenus);
+        allUsers = users;
+        readableMenuCodes = allowedCodes;
+        render();
+        logOpenStateSummary('initMenuGrid');
+    }
+
+    if (window.Common) {
+        if (typeof window.Common.renderProfileAvatar === 'function') {
+            window.Common.renderProfileAvatar($('#avatar'));
+        }
+        if (typeof window.Common.setFavicon === 'function') {
+            window.Common.setFavicon();
+        }
+    }
+
     window.showPage = showPage;
+    window.showMenuLayer = showMenuLayer;
     window.renderRegister = renderRegister;
+    window.renderSystemSettings = window.renderSystemSettings || window.renderConfigManagement;
+    window.drawerAction = function drawerAction(menuCode) {
+        invokeMenuAction({ code: menuCode });
+    };
+
+    $('#mainContainerClose').on('click', () => showMenuLayer());
+    $(document).on('keydown', (event) => {
+        if (event.key === 'Escape') {
+            showMenuLayer();
+        }
+    });
+
+    bindTabs();
+    initMenuGrid();
+    window.rebuildMenuGrid = initMenuGrid;
 });

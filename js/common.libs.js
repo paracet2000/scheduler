@@ -155,31 +155,60 @@
         normalizeAvatarPath(avatarUrl) {
             const raw = String(avatarUrl || '').trim();
             if (!raw) return '';
-            if (raw.startsWith('/')) return raw;
-            if (raw.startsWith('uploads/')) return `/${raw}`;
-            if (!raw.includes('/')) return `/uploads/${raw}`;
-            return `/${raw}`;
+            const normalizedRaw = raw.replace(/\\/g, '/');
+
+            // Legacy absolute URL that points to /uploads/<file> is no longer valid in current deploy model.
+            const absoluteUploadMatch = normalizedRaw.match(/\/uploads\/([^/?#]+)(?:[?#].*)?$/i);
+            if (absoluteUploadMatch && absoluteUploadMatch[1]) {
+                return '';
+            }
+
+            const cleaned = normalizedRaw.replace(/^\.?\//, '');
+            if (cleaned.startsWith('images/')) return `/${cleaned}`;
+            if (cleaned.startsWith('uploads/')) {
+                return '';
+            }
+            // Legacy plain filename: resolve under ./images by default.
+            if (!cleaned.includes('/')) {
+                if (/^profile_[\w-]+\.(jpg|jpeg|png|webp)$/i.test(cleaned)) return '';
+                return `/images/${cleaned}`;
+            }
+            return `/${cleaned}`;
         },
 
         resolveAvatarUrl(avatarUrl) {
             if (!avatarUrl) return '';
+            const normalizedInput = String(avatarUrl || '').trim();
             if (
-                avatarUrl.startsWith('http://') ||
-                avatarUrl.startsWith('https://') ||
-                avatarUrl.startsWith('data:') ||
-                avatarUrl.startsWith('blob:')
+                normalizedInput.startsWith('data:') ||
+                normalizedInput.startsWith('blob:')
             ) {
-                return avatarUrl;
+                return normalizedInput;
             }
+            const pathOnly = Common.normalizeAvatarPath(normalizedInput);
+            if (!pathOnly) return '';
+
+            // Keep external image URLs untouched unless they were remapped to local /images path above.
+            if (
+                (normalizedInput.startsWith('http://') || normalizedInput.startsWith('https://')) &&
+                !pathOnly.startsWith('/images/')
+            ) {
+                return normalizedInput;
+            }
+
             const apiBase = (window.BASE_URL || '').replace(/\/+$/, '');
-            const path = Common.normalizeAvatarPath(avatarUrl);
-            return apiBase ? `${apiBase}${path}` : path;
+            return apiBase ? `${apiBase}${pathOnly}` : pathOnly;
         },
         updateTopAvatar(avatarUrl, targetEl = null) {
             const fallback = 'images/defaultprofile.jpg';
             const resolved = Common.resolveAvatarUrl(String(avatarUrl || '').trim()) || fallback;
             const avatarEl = targetEl && targetEl.length ? targetEl : state.topAvatarEl;
             if (avatarEl && avatarEl.length) {
+                avatarEl.off('error.commonAvatar').on('error.commonAvatar', function() {
+                    if ($(this).attr('src') !== fallback) {
+                        $(this).attr('src', fallback);
+                    }
+                });
                 avatarEl.attr('src', resolved);
             }
             const link = document.getElementById('appFavicon');
@@ -366,6 +395,9 @@
             if (typeof window.rebuildDrawerMenu === 'function') {
                 window.rebuildDrawerMenu();
             }
+            if (typeof window.rebuildMenuGrid === 'function') {
+                window.rebuildMenuGrid();
+            }
             if (typeof window.renderLogin === 'function') {
                 window.renderLogin();
             } else if (typeof window.showPage === 'function') {
@@ -499,7 +531,7 @@
                     const normalizedCode = Common.normalizeMenuCode(rawCode);
                     const isLoggedIn = !!Common.getToken();
                     const menuItem = $('<button>', {
-                        text: item.mnu_description || item.text || normalizedCode || item.id,
+                        text: item.mnu_name || item.mnu_description || item.text || normalizedCode || item.id,
                         class: 'dropdown-item',
                         click: () => {
             const token = Common.getToken();
@@ -542,6 +574,7 @@
                     if (res.ok && Array.isArray(json.data)) {
                         const menus = json.data.map((m) => ({
                             id: m.mnu_code,
+                            mnu_name: m.mnu_name,
                             mnu_description: m.mnu_description,
                             mnu_icon: m.mnu_icon
                         }));
@@ -610,7 +643,7 @@
                 if (res.ok && Array.isArray(json.data)) {
                     menus = json.data.map((m) => ({
                         code: m.mnu_code,
-                        label: m.mnu_description,
+                        label: m.mnu_name || m.mnu_description,
                         icon: m.mnu_icon
                     }));
                 }

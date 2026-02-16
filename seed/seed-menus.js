@@ -42,7 +42,12 @@ async function main() {
   const ops = menus.map((m) => ({
     updateOne: {
       filter: { mnu_code: m.mnu_code },
-      update: { $set: m },
+      update: {
+        $set: {
+          ...m,
+          mnu_name: String(m.mnu_name || m.mnu_description || m.mnu_code || '').trim()
+        }
+      },
       upsert: true
     }
   }));

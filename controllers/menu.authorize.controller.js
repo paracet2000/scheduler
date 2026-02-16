@@ -24,7 +24,7 @@ exports.listByUser = asyncHandler(async (req, res) => {
 
 exports.listMenus = asyncHandler(async (req, res) => {
   const menus = await Menu.find({ mnu_status: 'ACTIVE' })
-    .select('mnu_code mnu_description mnu_icon')
+    .select('mnu_code mnu_name mnu_description mnu_icon mnu_clickCounter mnu_lastClickedAt last10Clicker')
     .sort({ mnu_code: 1 });
   response.success(res, menus, 'Menus loaded');
 });

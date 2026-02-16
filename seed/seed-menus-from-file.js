@@ -56,6 +56,7 @@ async function main() {
   const cleaned = items
     .map((m) => ({
       mnu_code: String(m?.mnu_code || '').trim(),
+      mnu_name: String(m?.mnu_name || m?.mnu_description || '').trim(),
       mnu_description: String(m?.mnu_description || '').trim(),
       mnu_icon: m?.mnu_icon === undefined ? undefined : String(m.mnu_icon || '').trim(),
       mnu_status: m?.mnu_status === undefined ? undefined : String(m.mnu_status || '').trim().toUpperCase()
@@ -78,7 +79,7 @@ async function main() {
   await mongoose.connect(uri);
 
   const ops = cleaned.map((m) => {
-    const $set = { mnu_description: m.mnu_description };
+    const $set = { mnu_name: m.mnu_name || m.mnu_description, mnu_description: m.mnu_description };
     if (m.mnu_icon !== undefined) $set.mnu_icon = m.mnu_icon;
     if (m.mnu_status !== undefined) $set.mnu_status = m.mnu_status;
     return {
@@ -102,4 +103,3 @@ main().catch((err) => {
   console.error(err?.message || err);
   process.exitCode = 1;
 });
-

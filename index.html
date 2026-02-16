@@ -2,14 +2,13 @@
 <html lang="th">
 
 <head>
-    <title>ตารางเวรพยาบาล</title>
+    <title>Nurse Scheduler</title>
     <link id="appFavicon" rel="icon" href="images/defaultprofile.jpg" />
 
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
 
-    <!-- jQuery -->
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <script>
         window.jQuery || document.write(
@@ -17,18 +16,16 @@
         );
     </script>
 
-    <!-- DevExtreme -->
     <link rel="stylesheet"
           href="https://cdn3.devexpress.com/jslib/25.2.4/css/dx.softblue.compact.css" />
     <script src="https://cdn3.devexpress.com/jslib/25.2.4/js/dx.all.js"></script>
-
-    <!-- DevExtreme Export Dependencies -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-    <!-- App -->
     <link rel="stylesheet" href="styles.css" />
+
+    <script src="js/common.libs.js" defer></script>
     <script src="js/index.js" defer></script>
     <script src="js/personal.js" defer></script>
     <script src="js/scheduler-head.js" defer></script>
@@ -47,133 +44,123 @@
     <script src="js/shift-pattern.js" defer></script>
     <script src="js/user-shift-rate.js" defer></script>
     <script src="js/user-rights.js" defer></script>
-    <script src="js/common.libs.js" defer></script>
     <script src="js/helper.js" defer></script>
     <script src="js/db-export.js" defer></script>
     <script src="js/attendance.js" defer></script>
     <script src="js/login.js" defer></script>
-    
 </head>
 
-<body class="dx-viewport">
-
-    <!-- Top Bar -->
+<body class="menu-catalog dx-viewport">
     <header class="topbar">
         <img id="avatar" class="avatar" src="images/defaultprofile.jpg" alt="User Avatar" />
-        <div class="logo">🩺 Nurse Scheduler</div>
-        <nav class="top-menu" id="topMenu">
-            <!-- future: user profile / logout -->
-        </nav>
+        <div class="logo">Nurse Scheduler</div>
+        <nav class="top-menu" id="topMenu"></nav>
     </header>
 
-    <!-- Layout -->
-    <div class="layout">
-        <aside class="drawer" id="drawer">
-            <div class="drawer-header">
-                <div class="drawer-title">Menu</div>
-                <button class="drawer-toggle" id="drawerToggle" aria-label="Toggle menu">☰</button>
+    <main class="menu-page">
+        <section class="menu-toolbar">
+            <div class="menu-tabs" id="menuTabs">
+                <button class="menu-tab is-active" type="button" data-tab="popular">Popular</button>
+                <button class="menu-tab" type="button" data-tab="schedule">Schedule</button>
+                <button class="menu-tab" type="button" data-tab="routine-data">Routine Data</button>
+                <button class="menu-tab" type="button" data-tab="settings">Settings</button>
             </div>
-            <div class="drawer-menu" id="drawerMenu"></div>
-        </aside>
-        <div
-            class="drawer-splitter"
-            id="drawerSplitter"
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="Resize menu"
-            aria-disabled="false"
-            tabindex="0"></div>
-        <!-- Content -->
-        <main class="main-content" id="mainContent">
+            <div class="menu-toolbar-meta" id="menuToolbarMeta">All templates (0)</div>
+        </section>
+        <div class="menu-grid" id="menuGrid"></div>
 
-            <div id="personalDashboard" class="page"></div>
-
-            <div id="schedule" class="page pagehidden">
-                <div class="schedule-toolbar">
-                    <div id="scheduleWardFilter"></div>
-                </div>
-                <div id="personalScheduler"></div>
+        <div class="main-container main-container--hidden" id="mainContainer" aria-hidden="true">
+            <div class="main-container-header">
+                <button class="main-container-close" id="mainContainerClose" type="button" aria-label="Close workspace">
+                    <span class="main-container-close-icon" aria-hidden="true"></span>
+                </button>
+                <div class="main-container-title" id="mainContainerTitle">Menu Workspace</div>
             </div>
 
-            <div id="change" class="page pagehidden"></div>
+            <main id="mainContent">
+                <div id="personalDashboard" class="page pagehidden"></div>
 
-            <div id="profile" class="page pagehidden"></div>
-
-            <div id="register" class="page pagehidden">
-                <div id="registerForm"></div>
-
-                <div class="form-actions-left">
-                    <div id="btnSave"></div>
-                    <div id="btnClose"></div>
+                <div id="schedule" class="page pagehidden">
+                    <div class="schedule-toolbar">
+                        <div id="scheduleWardFilter"></div>
+                    </div>
+                    <div id="personalScheduler"></div>
                 </div>
-            </div>
 
-            <div id="login" class="page pagehidden">
-                <div id="loginForm"></div>
+                <div id="change" class="page pagehidden"></div>
+                <div id="profile" class="page pagehidden"></div>
 
-                <div class="form-actions-left">
-                    <div id="btnLogin"></div>
-                    <div id="btnLoginClose"></div>
+                <div id="register" class="page pagehidden">
+                    <div id="registerForm"></div>
+                    <div class="form-actions-left">
+                        <div id="btnSave"></div>
+                        <div id="btnClose"></div>
+                    </div>
                 </div>
-            </div>
 
-            <div id="personalSettingPage" class="page pagehidden">
-                <div class="part" >
-                    <div id="profileForm"></div>
-                    <div id="btnPersonalSave"></div>
+                <div id="login" class="page pagehidden">
+                    <div id="loginForm"></div>
+                    <div class="form-actions-left">
+                        <div id="btnLogin"></div>
+                        <div id="btnLoginClose"></div>
+                    </div>
                 </div>
-                <div class="part">
-                    <div class="personal-readonly-title">Ward Member</div>
-                    <div id="wardMemberInfoGrid"></div>
+
+                <div id="personalSettingPage" class="page pagehidden">
+                    <div class="part">
+                        <div id="profileForm"></div>
+                        <div id="btnPersonalSave"></div>
+                    </div>
+                    <div class="part">
+                        <div class="personal-readonly-title">Ward Member</div>
+                        <div id="wardMemberInfoGrid"></div>
+                    </div>
+                    <div class="part">
+                        <div class="personal-readonly-title">My Shift Rates</div>
+                        <div id="myShiftRateGrid"></div>
+                    </div>
+                    <div class="part">
+                        <div id="passwordForm"></div>
+                        <div id="btnPasswordSave"></div>
+                    </div>
+                    <div class="part" id="avatarPart">
+                        <img id="avatarPreview" class="avatar-large" src="images/defaultprofile.jpg" alt="Avatar Preview" />
+                        <input type="file" id="avatarInput" accept="image/*" />
+                        <button type="button" id="btnAvatarUpload" class="dx-button dx-button-mode-contained dx-button-success">Upload</button>
+                    </div>
                 </div>
-                <div class="part">
-                    <div class="personal-readonly-title">My Shift Rates</div>
-                    <div id="myShiftRateGrid"></div>
+
+                <div id="settingsSystem" class="page pagehidden">
+                    <div id="header" style="margin-bottom: 26px;">
+                        <div id="headFormUser"></div>
+                        <div id="headFormShift"></div>
+                    </div>
+                    <div id="ShiftRateForm"></div>
                 </div>
-                <div class="part">
-                    <div id="passwordForm"></div>                
-                    <div id="btnPasswordSave"></div>
+
+                <div id="schedulerHead" class="page pagehidden"></div>
+                <div id="userManagement" class="page pagehidden">
+                    <div id="userGrid"></div>
                 </div>
-                <div class="part" id="avatarPart">
-                    <img id="avatarPreview" class="avatar-large" src="images/defaultprofile.jpg" alt="Avatar Preview" />
-                    <input type="file" id="avatarInput" accept="image/*" />
-                    <button type="button" id="btnAvatarUpload" class="dx-button dx-button-mode-contained dx-button-success">Upload</button>
+
+                <div id="config" class="page pagehidden"></div>
+                <div id="wardMember" class="page pagehidden"></div>
+
+                <div id="kpiEntry" class="page pagehidden">
+                    <div id="kpiEntryForm"></div>
                 </div>
-            </div>
 
-            <div id="settingsSystem" class="page pagehidden">
-                <div id="header" style="margin-bottom: 26px;">
-                    <div id="headFormUser"></div>
-                    <div id="headFormShift"></div>
-                </div>
-                <div id="ShiftRateForm"></div>
-            </div>
-
-            <div id="schedulerHead" class="page pagehidden"></div>
-
-            <div id="userManagement" class="page pagehidden">
-                <div id="userGrid"></div>
-            </div>
-
-            <div id="config" class="page pagehidden"></div>
-            <div id="wardMember" class="page pagehidden"></div>
-
-            <div id="kpiEntry" class="page pagehidden">
-                <div id="kpiEntryForm"></div>
-            </div>
-
-            <div id="kpiDefinition" class="page pagehidden"></div>
-            <div id="kpiDashboardSetting" class="page pagehidden"></div>
-
-            <div id="kpiDashboard" class="page pagehidden"></div>
-            <div id="kpiTools" class="page pagehidden"></div>
-            <div id="commonReport" class="page pagehidden"></div>
-            <div id="shiftPattern" class="page pagehidden"></div>
-            <div id="userRights" class="page pagehidden"></div>
-            <div id="attendanceSync" class="page pagehidden"></div>
-
-        </main>
-    </div>
-
+                <div id="kpiDefinition" class="page pagehidden"></div>
+                <div id="kpiDashboardSetting" class="page pagehidden"></div>
+                <div id="kpiDashboard" class="page pagehidden"></div>
+                <div id="kpiTools" class="page pagehidden"></div>
+                <div id="commonReport" class="page pagehidden"></div>
+                <div id="shiftPattern" class="page pagehidden"></div>
+                <div id="userRights" class="page pagehidden"></div>
+                <div id="attendanceSync" class="page pagehidden"></div>
+            </main>
+        </div>
+    </main>
 </body>
+
 </html>

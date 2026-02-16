@@ -179,6 +179,7 @@ app.use('/api/scheduler-heads', require('./routes/scheduler.head.router'));
 app.use('/api/changes', require('./routes/changerequest.routes'));
 app.use('/api/menus', require('./routes/menu.routes'));
 app.use('/api/menu-authorize', require('./routes/menu.authorize.routes'));
+app.use('/api/menu-layouts', require('./routes/menu.layout.routes'));
 
 /* =========================
  * Frontend (index.html)
