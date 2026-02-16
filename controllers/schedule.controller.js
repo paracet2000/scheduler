@@ -2,6 +2,7 @@ const Schedule = require('../model/schedule.model');
 const SchedulerHead = require('../model/scheduler.head.model');
 const WardMember = require('../model/ward-member.model');
 const CodeType = require('../model/configuration.model');
+const User = require('../model/user.model');
 const { parseConfValue } = require('../utils/config-meta');
 const { toMonthYear } = require('../utils/month-year');
 const AppError = require('../helpers/apperror');
@@ -13,30 +14,28 @@ const response = require('../helpers/response');
  */
 exports.bookSchedule = asyncHandler(async (req, res) => {
   const { schedules } = req.body;
-  
-  /**
-   * schedules = [
-   *   {
-   *     date,
-   *     wardId,
-   *     shiftId,
-   *     positionId,
-   *     meta
-   *   }
-   * ]
-   */
-
+  if (String(process.env.DEBUG_BOOK_SCHEDULE || '').trim() === '1') {
+    console.log('Book req count:', Array.isArray(schedules) ? schedules.length : schedules);
+  }
   if (!Array.isArray(schedules) || schedules.length === 0) {
     throw new AppError('Schedule data is required', 400);
   }
 
   const docs = schedules.map(item => {
-    const workDate = item.workDate || item.date;
-    const wardId = item.wardId;
-    const shiftCode = item.shiftCode || item.shiftId;
-    const targetUserId = item.userId;
+    const rawWorkDate = item.workDate || item.date;
+    const workDate = new Date(rawWorkDate);
+    const wardId = (item.wardId && item.wardId._id) ? item.wardId._id : item.wardId;
+    const shiftCodeRaw = item.shiftCode || item.shiftId;
+    const shiftCode = String(shiftCodeRaw || '').trim().toUpperCase();
+    const targetUserId = (item.userId && item.userId._id) ? item.userId._id : item.userId;
 
-    if (!workDate || !wardId || !shiftCode) {
+    if (!rawWorkDate || Number.isNaN(workDate.getTime())) {
+      throw new AppError('Invalid workDate', 400);
+    }
+    if (!wardId || !/^[a-f0-9]{24}$/i.test(String(wardId).trim())) {
+      throw new AppError('Invalid wardId', 400);
+    }
+    if (!shiftCode) {
       throw new AppError('workDate, wardId and shiftCode are required', 400);
     }
 
@@ -44,13 +43,13 @@ exports.bookSchedule = asyncHandler(async (req, res) => {
     const roles = Array.isArray(req.user?.roles) ? req.user.roles : [];
     const isHead = roles.includes('head');
     const isAdmin = roles.includes('admin');
-    if (targetUserId && (isHead || isAdmin)) {
+    if (targetUserId && (isHead || isAdmin) && /^[a-f0-9]{24}$/i.test(String(targetUserId).trim())) {
       finalUserId = targetUserId;
     }
 
     return {
       workDate,
-      wardId,
+      wardId: String(wardId).trim(),
       shiftCode,
       meta: item.meta || {},
       userId: finalUserId,
@@ -59,69 +58,278 @@ exports.bookSchedule = asyncHandler(async (req, res) => {
     };
   });
 
-  // ensure booking window is OPEN for ward
-  const wardIds = Array.from(new Set(docs.map(d => String(d.wardId))));
-  const wardDocs = await CodeType.find({ _id: { $in: wardIds } })
-    .select('_id conf_code')
-    .lean();
-  const wardCodeMap = new Map(
-    wardDocs.map(w => [String(w._id), String(w.conf_code || '').trim().toUpperCase()])
-  );
-  const requiredKeys = new Set();
-  docs.forEach((d) => {
-    const code = wardCodeMap.get(String(d.wardId));
-    const monthYear = toMonthYear(d.workDate);
-    if (!code || !monthYear) return;
-    requiredKeys.add(`${code}|${monthYear}`);
-  });
+  let created = [];
+  try {
+    created = await Schedule.insertMany(docs, { ordered: false });
+  } catch (err) {
+    const writeErrors = Array.isArray(err?.writeErrors) ? err.writeErrors : [];
+    const hasNonDuplicateWriteError = writeErrors.some((e) => Number(e?.code) && Number(e.code) !== 11000);
+    const isDuplicateOnly =
+      (Number(err?.code) === 11000 && !hasNonDuplicateWriteError) ||
+      (writeErrors.length > 0 && writeErrors.every((e) => Number(e?.code) === 11000)) ||
+      (typeof err?.message === 'string' && err.message.includes('E11000 duplicate key error'));
 
-  const wardCodes = Array.from(new Set(Array.from(requiredKeys).map((k) => k.split('|')[0])));
-  const monthYears = Array.from(new Set(Array.from(requiredKeys).map((k) => k.split('|')[1])));
+    if (isDuplicateOnly) {
+      // Duplicate can mean:
+      // 1) idempotent re-save in the same ward (OK)
+      // 2) same user+date+shift already exists in another ward (conflict for this UI)
+      const dedupeKeys = docs.map((d) => ({
+        userId: d.userId,
+        workDate: d.workDate,
+        shiftCode: d.shiftCode
+      }));
+      const existing = dedupeKeys.length
+        ? await Schedule.find({ $or: dedupeKeys })
+            .select('_id userId wardId workDate shiftCode status createdBy meta')
+            .lean()
+        : [];
 
-  const heads = await SchedulerHead.find({
-    status: 'OPEN',
-    wardCode: { $in: wardCodes },
-    monthYear: { $in: monthYears }
-  })
-    .select('wardCode monthYear periodStart status')
-    .lean();
+      const toNoWardKey = (d) => `${String(d.userId)}|${new Date(d.workDate).getTime()}|${String(d.shiftCode || '').toUpperCase()}`;
+      const toFullKey = (d) => `${toNoWardKey(d)}|${String(d.wardId)}`;
 
-  const openKeys = new Set();
-  heads.forEach((h) => {
-    const code = String(h.wardCode || '').trim().toUpperCase();
-    const monthYear = String(h.monthYear || '').trim() || toMonthYear(h.periodStart);
-    if (code && monthYear) openKeys.add(`${code}|${monthYear}`);
-  });
+      const existingByNoWard = new Map();
+      existing.forEach((e) => {
+        const k = toNoWardKey(e);
+        if (!existingByNoWard.has(k)) existingByNoWard.set(k, []);
+        existingByNoWard.get(k).push(e);
+      });
 
-  const missing = Array.from(requiredKeys).find((k) => !openKeys.has(k));
-  if (missing) {
-    const [code, monthYear] = missing.split('|');
-    throw new AppError(`Booking window is not OPEN for ward ${code} (${monthYear})`, 400);
+      const insertedDocs = Array.isArray(err?.insertedDocs) ? err.insertedDocs : [];
+      const insertedKeySet = new Set(insertedDocs.map((d) => toFullKey(d)));
+
+      const idempotentExisting = [];
+      const conflicts = [];
+
+      docs.forEach((d) => {
+        if (insertedKeySet.has(toFullKey(d))) return;
+        const sameShiftRows = existingByNoWard.get(toNoWardKey(d)) || [];
+        if (!sameShiftRows.length) return;
+        const sameWard = sameShiftRows.find((x) => String(x.wardId) === String(d.wardId));
+        if (sameWard) {
+          idempotentExisting.push(sameWard);
+        } else {
+          conflicts.push({ requested: d, exists: sameShiftRows[0] });
+        }
+      });
+
+      if (conflicts.length) {
+        const c = conflicts[0];
+        const dateText = new Date(c.requested.workDate).toISOString().slice(0, 10);
+        throw new AppError(
+          `Shift ${c.requested.shiftCode} on ${dateText} already exists in another ward (${c.exists.wardId})`,
+          409
+        );
+      }
+
+      const outById = new Map();
+      [...insertedDocs, ...idempotentExisting].forEach((d) => {
+        if (!d?._id) return;
+        outById.set(String(d._id), d);
+      });
+      const out = Array.from(outById.values());
+
+      return response.success(res, out, 'Schedule booked successfully (some entries already existed)', 201);
+    }
+
+    if (err?.name === 'ValidationError' || err?.name === 'CastError') {
+      throw new AppError(err.message || 'Invalid schedule data', 400);
+    }
+
+    throw err;
   }
 
-  const created = await Schedule.insertMany(docs);
-
   response.success(res, created, 'Schedule booked successfully', 201);
+});
+
+/**
+ * USER: book schedule for a single day
+ * POST /api/schedules/dayBook (alias: /day-book)
+ *
+ * Body:
+ * - workDate/date: required
+ * - wardId: required
+ * - shiftCodes: required (array or string "M A N")
+ * - userId: optional (only head/admin can book for others)
+ * - meta: optional (applies to all created rows unless shifts[] supplies per-code meta)
+ * - shifts: optional [{ shiftCode, meta }]
+ */
+exports.dayBookSchedule = asyncHandler(async (req, res) => {
+  /*
+   * Goal: prevent confusion between "ผู้ป้อน" and "เจ้าของเวร"
+   * - createdBy = req.user._id (from token) : ผู้ป้อน/ผู้บันทึก
+   * - userId (Schedule.userId)             : เจ้าของเวร
+   *
+   * Body:
+   * - workDate/date: required
+   * - wardId: required
+   * - shifts: array of shiftCode (empty => clear day)
+   * - userId: optional owner userId (ObjectId) [head/admin only]
+   * - empCode: optional owner empcode         [head/admin only, will be mapped to userId]
+   */
+
+  const roles = Array.isArray(req.user?.roles) ? req.user.roles : [];
+  const isHead = roles.includes('head');
+  const isAdmin = roles.includes('admin');
+
+  const rawWorkDate = req.body?.workDate || req.body?.date;
+  const workDate = new Date(rawWorkDate);
+  const wardId = (req.body?.wardId && req.body.wardId._id) ? req.body.wardId._id : req.body?.wardId;
+
+  const createdBy = req.user?._id;
+  if (!createdBy) {
+    throw new AppError('Unauthorized', 401);
+  }
+
+  if (!rawWorkDate || Number.isNaN(workDate.getTime())) {
+    throw new AppError('Invalid workDate', 400);
+  }
+  if (!wardId || !/^[a-f0-9]{24}$/i.test(String(wardId).trim())) {
+    throw new AppError('Invalid wardId', 400);
+  }
+
+  const requestedOwnerUserId = (req.body?.userId && req.body.userId._id) ? req.body.userId._id : req.body?.userId;
+  const requestedEmpCode = String(req.body?.empCode || req.body?.empcode || '').trim();
+
+  let ownerUserId = createdBy; // default: self
+  if (requestedOwnerUserId && /^[a-f0-9]{24}$/i.test(String(requestedOwnerUserId).trim())) {
+    ownerUserId = String(requestedOwnerUserId).trim();
+  } else if (requestedEmpCode) {
+    const u = await User.findOne({ empcode: requestedEmpCode, status: 'ACTIVE' }).select('_id').lean();
+    if (!u?._id) {
+      throw new AppError('Invalid empCode', 400);
+    }
+    ownerUserId = u._id;
+  }
+
+  // Only head/admin can write schedules for other users.
+  if (!(isHead || isAdmin) && String(ownerUserId) !== String(createdBy)) {
+    throw new AppError('Forbidden', 403);
+  }
+
+  const rawShifts = Array.isArray(req.body?.shifts)
+    ? req.body.shifts
+    : (Array.isArray(req.body?.shiftCodes) ? req.body.shiftCodes : []);
+
+  const normalizeShiftCode = (code) => String(code || '').trim().toUpperCase();
+  const shiftCodes = Array.from(new Set(rawShifts.map(normalizeShiftCode).filter(Boolean)));
+
+  // clear all shifts (this ward + this date + this owner)
+  await Schedule.deleteMany({ userId: ownerUserId, wardId: String(wardId).trim(), workDate });
+
+  if (shiftCodes.length === 0) {
+    return response.success(res, { cleared: true }, 'Schedule cleared', 200);
+  }
+
+  const docs = shiftCodes.map((shiftCode) => ({
+    userId: ownerUserId,
+    wardId: String(wardId).trim(),
+    workDate,
+    shiftCode,
+    status: 'BOOK',
+    createdBy
+  }));
+
+  let created = [];
+  try {
+    created = await Schedule.insertMany(docs, { ordered: false });
+  } catch (err) {
+    const writeErrors = Array.isArray(err?.writeErrors) ? err.writeErrors : [];
+    const hasNonDuplicateWriteError = writeErrors.some((e) => Number(e?.code) && Number(e.code) !== 11000);
+    const isDuplicateOnly =
+      (Number(err?.code) === 11000 && !hasNonDuplicateWriteError) ||
+      (writeErrors.length > 0 && writeErrors.every((e) => Number(e?.code) === 11000)) ||
+      (typeof err?.message === 'string' && err.message.includes('E11000 duplicate key error'));
+
+    if (isDuplicateOnly) {
+      const inserted = Array.isArray(err?.insertedDocs) ? err.insertedDocs : [];
+      return response.success(res, inserted, 'Schedule booked successfully (some entries already existed)', 201);
+    }
+
+    if (err?.name === 'ValidationError' || err?.name === 'CastError') {
+      throw new AppError(err.message || 'Invalid schedule data', 400);
+    }
+    throw err;
+  }
+
+  return response.success(res, created, 'Schedule booked successfully', 201);
 });
 
 /**
  * USER: ดูตารางเวรของตัวเอง
  */
 exports.mySchedule = asyncHandler(async (req, res) => {
-  const schedules = await Schedule.find({
-    userId: req.user._id,
-    status: { $ne: 'INACTIVE' }
-  })
+    /*
+  expected body:
+    - fromDate (ISO string): required
+    - toDate (ISO string, exclusive): required
+    - wards (array of wardId ObjectId strings): optional (defaults to user's ACTIVE wards)
+  */
+  if (String(req.method || '').toUpperCase() !== 'POST') {
+    throw new AppError('Method not allowed. Use POST /api/schedules/my', 405);
+  }
+
+  const userId = req.user?._id || req.user?.id;
+
+  // Frontend sends all filters via JSON body (POST /api/schedules/my).
+  // We intentionally do not parse req.query anymore to keep behavior predictable.
+  const src = req.body || {};
+
+  const fromDate = src.fromDate;
+  const toDate = src.toDate;
+  const wards = Array.isArray(src.wards) ? src.wards : [];
+
+  const normalizeWardId = (w) => (w && typeof w === 'object' && w._id) ? w._id : w;
+  let wardIdList = wards
+    .map(normalizeWardId)
+    .map((x) => String(x || '').trim())
+    .filter(Boolean);
+
+  const invalidWardId = wardIdList.find((id) => !/^[a-f0-9]{24}$/i.test(id));
+  if (invalidWardId) {
+    throw new AppError('Invalid wardId in wards', 400);
+  }
+  wardIdList = Array.from(new Set(wardIdList));
+
+  // Date range: fromDate/toDate (toDate is exclusive).
+  let from = null;
+  let to = null;
+  if (!fromDate || !toDate) {
+    throw new AppError('fromDate and toDate are required', 400);
+  }
+  from = new Date(fromDate);
+  to = new Date(toDate);
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+    throw new AppError('Invalid fromDate/toDate', 400);
+  }
+  if (to <= from) {
+    throw new AppError('toDate must be after fromDate', 400);
+  }
+
+  const query = {
+    userId,
+    status: { $ne: 'INACTIVE' },
+    workDate: { $gte: from, $lt: to },
+  };
+
+  // If caller didn't provide wardIds, default to the user's ACTIVE wards.
+  if (!wardIdList.length) {
+    const mine = await WardMember.find({ userId, status: 'ACTIVE' }).select('wardId').lean();
+    const mineIds = Array.isArray(mine)
+      ? mine.map((m) => String(m?.wardId || '').trim()).filter((id) => /^[a-f0-9]{24}$/i.test(id))
+      : [];
+    if (mineIds.length) wardIdList = mineIds;
+  }
+
+  if (wardIdList.length) query.wardId = { $in: wardIdList };
+
+  const schedules = await Schedule.find(query)
     .populate('wardId')
-    .sort({ workDate: 1 });
+    .sort({ workDate: 1 })
+    .lean();
 
   response.success(res, schedules, 'My schedule loaded');
 });
 
-/**
- * HEAD / ADMIN or SELF: get schedules by user + month
- * GET /api/schedules/user/:userId?month=1&year=2026&wardId=
- */
 exports.userScheduleById = asyncHandler(async (req, res) => {
   const { userId } = req.params;
   const { month, year, wardId } = req.query;
@@ -333,8 +541,6 @@ exports.summaryByWard = asyncHandler(async (req, res) => {
   const userIds = userWards
     .map(uw => uw.userId?._id)
     .filter(Boolean);
-
-  console.log('userIds in ward Data: ',userIds); // always show userIds is empty array
 
   const schedules = userIds.length
     ? await Schedule.find({

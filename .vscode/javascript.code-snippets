@@ -1,0 +1,13 @@
+{
+  "Console Log Data": {
+    "scope": "javascript,javascriptreact,typescript,typescriptreact",
+    "prefix": [
+      "$log",
+      "logdata"
+    ],
+    "body": [
+      "console.log(\"${1:xxx} data:\", ${1:xxx});"
+    ],
+    "description": "Log variable with '<name> data:' label"
+  }
+}

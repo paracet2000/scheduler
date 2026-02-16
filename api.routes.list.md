@@ -89,7 +89,9 @@ Base paths from `app.js`:
 
 ## /api/schedules
 - `POST /book`
-- `GET /my`
+- `POST /dayBook`
+- `POST /day-book`
+- `POST /my`
 - `GET /user/:userId`
 - `GET /head/:wardId`
 - `GET /summary/:wardId`

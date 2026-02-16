@@ -678,6 +678,11 @@ body.is-resizing-drawer * {
     background: #fff;
 }
 
+.schedule-grid.schedule-grid-locked .schedule-grid-body .schedule-grid-cell:not(.empty) {
+    pointer-events: none;
+    opacity: 0.6;
+}
+
 .schedule-grid-header,
 .schedule-grid-body {
     display: grid;
@@ -695,15 +700,25 @@ body.is-resizing-drawer * {
 }
 
 .schedule-booking-banner {
-    margin-top: 12px;
-    padding: 24px;
+    margin-bottom: 12px;
+    height: 36px;
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     text-align: center;
-    font-size: 20px;
+    font-size: 14px;
     font-weight: 600;
     color: #0f172a;
     background: #ffffff;
     border: 1px solid var(--border);
     border-radius: 10px;
+}
+
+.schedule-booking-banner--closed {
+    background: #dc2626;
+    border-color: #991b1b;
+    color: #ffffff;
 }
 
 .schedule-grid-cell {

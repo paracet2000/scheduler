@@ -50,7 +50,7 @@ const scheduleSchema = new mongoose.Schema(
         'BOOK',        // user ลงเอง
         'PROPOSE',     // head ปรับ
         'ACTIVE',      // ตารางใช้งานจริง
-        'OK',          // มาทำงาน
+        'WORKED',          // มาทำงาน
         'CALCULATED',  // คำนวณเงินแล้ว
         'PAID'         // จ่ายเงินแล้ว
       ],
@@ -100,6 +100,9 @@ scheduleSchema.index(
   { userId: 1, workDate: 1, shiftCode: 1 },
   { unique: true }
 )
+
+scheduleSchema.index({ userId: 1, workDate: 1, wardId: 1,status:1 })
+
 
 /**
  * ใช้ query helper

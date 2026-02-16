@@ -68,13 +68,7 @@ npm run push:prod -- "your commit message"
 - ถ้าไม่ใส่ข้อความ commit จะใช้ค่าเริ่มต้น: `Prepare production BASE_URL`
 
 ## Deploy Only (Render)
-Trigger deploy อย่างเดียว (ไม่ commit/push) โดยใช้ `RENDER_DEPLOY_HOOK` จากไฟล์ `.env`
+https://api.render.com/deploy/srv-d68kk095pdvs73840hqg?key=cx06dYTSGyc
 
-**PowerShell**
-```powershell
-node -e "const path=require('path');require('dotenv').config({path:path.join(process.cwd(),'.env')}); const h=(process.env.RENDER_DEPLOY_HOOK||'').trim(); if(!h){console.log('MISSING RENDER_DEPLOY_HOOK'); process.exit(1);} fetch(h).then(r=>console.log('STATUS',r.status)).catch(e=>console.error(e.message));"
-```
-
-**���Ѿ����Ҵ��ѧ**
-- �� `STATUS 200` ����� Render �Ѻ����� deploy ����
-- ��Ң�� `MISSING RENDER_DEPLOY_HOOK` �����������ù��� `.env` ��͹
+## run docker 
+docker run --rm --name scheduler-local -p 8899:8899 --env-file .env scheduler:local

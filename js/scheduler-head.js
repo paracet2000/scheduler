@@ -15,19 +15,29 @@ window.renderSchedulerHead = async function renderSchedulerHead() {
     let wards = [];
     let heads = [];
 
-    try {
-        const [wardList, headRes] = await Promise.all([
-            Helper.getWards(),
-            Common.fetchWithAuth('/api/scheduler-heads')
-        ]);
-
+    const loadHeads = async () => {
+        const headRes = await Common.fetchWithAuth('/api/scheduler-heads');
         const headJson = await headRes.json();
         if (!headRes.ok) {
             throw new Error(headJson.message || 'Failed to load scheduler heads');
         }
+        return Array.isArray(headJson.data) ? headJson.data : [];
+    };
+
+    const reloadHeads = async (grid) => {
+        heads = await loadHeads();
+        grid.option('dataSource', heads);
+        grid.refresh();
+    };
+
+    try {
+        const [wardList, loadedHeads] = await Promise.all([
+            Helper.getWards(),
+            loadHeads()
+        ]);
 
         wards = Array.isArray(wardList) ? wardList : [];
-        heads = Array.isArray(headJson.data) ? headJson.data : [];
+        heads = loadedHeads;
     } catch (err) {
         container.append(
             $('<div>', {
@@ -140,8 +150,7 @@ window.renderSchedulerHead = async function renderSchedulerHead() {
                                     DevExpress.ui.notify(json.message || 'Open failed', 'error', 3000);
                                     return;
                                 }
-                                options.data.status = json.data?.status || 'OPEN';
-                                options.component.refresh();
+                                await reloadHeads(options.component);
                                 DevExpress.ui.notify('Opened', 'success', 2000);
                             });
                         containerEl.append(btn);
@@ -157,8 +166,7 @@ window.renderSchedulerHead = async function renderSchedulerHead() {
                                     DevExpress.ui.notify(json.message || 'Close failed', 'error', 3000);
                                     return;
                                 }
-                                options.data.status = json.data?.status || 'CLOSED';
-                                options.component.refresh();
+                                await reloadHeads(options.component);
                                 DevExpress.ui.notify('Closed', 'success', 2000);
                             });
                         containerEl.append(btn);
@@ -169,6 +177,8 @@ window.renderSchedulerHead = async function renderSchedulerHead() {
             }
         ],
         onRowInserting: async (e) => {
+            e.cancel = true;
+
             const payload = {
                 wardCode: e.data.wardCode,
                 periodStart: e.data.periodStart,
@@ -182,13 +192,13 @@ window.renderSchedulerHead = async function renderSchedulerHead() {
             });
             const json = await res.json();
             if (!res.ok) {
-                e.cancel = true;
+                e.component.cancelEditData();
                 DevExpress.ui.notify(json.message || 'Create failed', 'error', 3000);
                 return;
             }
-            e.data._id = json.data?._id || e.data._id;
-            e.data.monthYear = json.data?.monthYear || e.data.monthYear;
-            e.data.status = json.data?.status || 'DRAFT';
+
+            await reloadHeads(e.component);
+            e.component.cancelEditData();
             DevExpress.ui.notify('Created', 'success', 2000);
         },
         onRowValidating: (e) => {

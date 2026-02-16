@@ -35,9 +35,13 @@ window.renderChangeRequest = async function renderChangeRequest() {
     const updateMonthLabel = () => monthLabel.text(getMonthLabel(selectedMonth));
 
     const loadSchedules = async () => {
-        const res = await Common.fetchWithAuth('/api/schedules/my');
+        const from = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1);
+        const to = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 1); // exclusive end
+        const res = await Common.fetchWithAuth('/api/schedules/my', {
+            method: 'POST',
+            body: JSON.stringify({ fromDate: from.toISOString(), toDate: to.toISOString() })
+        });
         const json = await res.json();
-        console.log('json Data on change: ',json);
         if (!res.ok) {
             DevExpress.ui.notify(json.message || 'Failed to load schedules', 'error', 3000);
             return [];
@@ -81,14 +85,16 @@ window.renderChangeRequest = async function renderChangeRequest() {
         }).dxDataGrid('instance');
     };
 
-    prevBtn.on('click', () => {
+    prevBtn.on('click', async () => {
         selectedMonth = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() - 1, 1);
         updateMonthLabel();
+        schedules = await loadSchedules();
         renderGrid();
     });
-    nextBtn.on('click', () => {
+    nextBtn.on('click', async () => {
         selectedMonth = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 1);
         updateMonthLabel();
+        schedules = await loadSchedules();
         renderGrid();
     });
 

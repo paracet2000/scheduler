@@ -3,6 +3,7 @@ const router = express.Router();
 
 const auth = require('../middleware/authenticate');
 const authorizeWard = require('../middleware/authorize-ward');
+const AppError = require('../helpers/apperror');
 const ctrl = require('../controllers/schedule.controller');
 
 /* =========================
@@ -16,8 +17,26 @@ router.post(
   ctrl.bookSchedule
 );
 
+// book schedule for a single day (preferred for UI day-by-day saves)
+router.post(
+  '/dayBook',
+  auth,
+  ctrl.dayBookSchedule
+);
+router.post(
+  '/day-book',
+  auth,
+  ctrl.dayBookSchedule
+);
+
 // ดูตารางของตัวเอง
+// My schedule (filters via JSON body)
 router.get(
+  '/my',
+  auth,
+  (req, res, next) => next(new AppError('Method not allowed. Use POST /api/schedules/my', 405))
+);
+router.post(
   '/my',
   auth,
   ctrl.mySchedule

@@ -1,6 +1,7 @@
 // controllers/scheduler.head.controller.js
 
 const SchedulerHead = require('../model/scheduler.head.model');
+const CodeType = require('../model/configuration.model');
 const asyncHandler = require('../helpers/async.handler');
 const AppError = require('../helpers/apperror');
 const { toMonthYear } = require('../utils/month-year');
@@ -22,6 +23,17 @@ exports.createSchedulerHead = asyncHandler(async (req, res) => {
   const monthYear = toMonthYear(periodStart);
   if (!monthYear) {
     throw new AppError('periodStart is invalid', 400);
+  }
+
+  const wardExists = await CodeType.findOne({
+    typ_code: { $in: ['DEPT', 'WARD'] },
+    conf_code: code,
+  })
+    .select('_id')
+    .lean();
+
+  if (!wardExists) {
+    throw new AppError(`Invalid wardCode: ${code}`, 400);
   }
 
   const existingMonth = await SchedulerHead.findOne({
