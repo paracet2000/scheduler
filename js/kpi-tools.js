@@ -114,7 +114,6 @@ window.renderKpiTools = function renderKpiTools() {
         keyExpr: 'label',
         showBorders: true,
         columnAutoWidth: true,
-        height: 9 * 25 + 10,
         scrolling: { mode: 'virtual' },
         editing: {
             mode: 'popup',

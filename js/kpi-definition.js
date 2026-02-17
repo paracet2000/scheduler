@@ -2,6 +2,10 @@
 'use strict';
 
 window.renderKpiDefinitions = async function renderKpiDefinitions() {
+    const GRID_MAX_ROWS = 25;
+    const GRID_ROW_HEIGHT = 25;
+    const GRID_HEIGHT = GRID_MAX_ROWS * GRID_ROW_HEIGHT + 10;
+
     if (typeof window.showPage === 'function') {
         window.showPage('kpiDefinition');
     }
@@ -42,12 +46,39 @@ window.renderKpiDefinitions = async function renderKpiDefinitions() {
         args.customItem = text || null;
     };
 
+    const syncFilterRowVisibility = (comp) => {
+        if (!comp || typeof comp.getDataSource !== 'function') return;
+        const ds = comp.getDataSource();
+        let total = 0;
+        if (ds) {
+            const tc = typeof ds.totalCount === 'function' ? ds.totalCount() : null;
+            if (typeof tc === 'number' && !Number.isNaN(tc)) {
+                total = tc;
+            } else if (typeof ds.items === 'function') {
+                total = (ds.items() || []).length;
+            } else if (Array.isArray(ds._items)) {
+                total = ds._items.length;
+            }
+        }
+        const filterRow = comp.option('filterRow') || {};
+        const shouldShow = total > GRID_MAX_ROWS;
+        if (Boolean(filterRow.visible) === shouldShow) return;
+        comp.option('filterRow', { ...filterRow, visible: shouldShow });
+    };
+
     $gridWrap.dxDataGrid({
         dataSource: buildStore(),
         keyExpr: '_id',
         showBorders: true,
+        rowHeight: GRID_ROW_HEIGHT,
+        height: GRID_HEIGHT,
         columnAutoWidth: true,
-        paging: { pageSize: 10 },
+        scrolling: {
+            mode: 'virtual',
+            rowRenderingMode: 'virtual'
+        },
+        paging: { pageSize: GRID_MAX_ROWS },
+        filterRow: { visible: false },
         editing: {
             mode: 'popup',
             allowUpdating: true,
@@ -149,6 +180,9 @@ window.renderKpiDefinitions = async function renderKpiDefinitions() {
         },
         onDataErrorOccurred: (e) => {
             DevExpress.ui.notify(e.error?.message || 'Operation failed', 'error', 3000);
+        },
+        onContentReady: (e) => {
+            syncFilterRowVisibility(e.component);
         }
     });
 };

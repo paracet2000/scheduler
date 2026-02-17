@@ -665,9 +665,35 @@
                 ['#c4b5fd', '#f9a8d4']
             ];
 
+            const decodeHtmlNumericEntities = (value) => {
+                const text = String(value || '');
+                return text
+                    .replace(/&#x([0-9a-f]+);/gi, (full, hex) => {
+                        const codePoint = Number.parseInt(hex, 16);
+                        if (!Number.isFinite(codePoint)) return full;
+                        try {
+                            return String.fromCodePoint(codePoint);
+                        } catch {
+                            return full;
+                        }
+                    })
+                    .replace(/&#([0-9]+);/g, (full, dec) => {
+                        const codePoint = Number.parseInt(dec, 10);
+                        if (!Number.isFinite(codePoint)) return full;
+                        try {
+                            return String.fromCodePoint(codePoint);
+                        } catch {
+                            return full;
+                        }
+                    });
+            };
+
             const resolveMenuIconText = ({ icon, label, code }) => {
                 const rawIcon = String(icon || '').trim();
-                if (rawIcon) return rawIcon.length > 2 ? rawIcon.slice(0, 2) : rawIcon;
+                if (rawIcon) {
+                    const decoded = decodeHtmlNumericEntities(rawIcon);
+                    return decoded.length > 2 ? decoded.slice(0, 2) : decoded;
+                }
                 const base = String(label || code || 'M').trim();
                 return (base ? base.charAt(0) : 'M').toUpperCase();
             };

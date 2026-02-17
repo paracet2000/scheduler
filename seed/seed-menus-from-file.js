@@ -4,10 +4,13 @@
 // Usage:
 //   node seed/seed-menus-from-file.js
 //   node seed/seed-menus-from-file.js --file data/menus.json --apply
+//   node seed/seed-menus-from-file.js --file data/menus.json --apply --allow-empty-icon
 //
 // Notes:
 // - Dry-run by default (no DB writes) unless --apply is provided.
 // - Upserts by mnu_code.
+// - Empty mnu_icon ("") is ignored by default to avoid overwriting existing icon in DB.
+//   Use --allow-empty-icon if you intentionally want to clear icon values.
 
 const fs = require('fs');
 const path = require('path');
@@ -19,10 +22,11 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') });
 const Menu = require('../model/menu.model');
 
 function parseArgs(argv) {
-  const out = { file: 'data/menus.json', apply: false };
+  const out = { file: 'data/menus.json', apply: false, allowEmptyIcon: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--apply') out.apply = true;
+    else if (a === '--allow-empty-icon') out.allowEmptyIcon = true;
     else if (a === '--file') out.file = argv[i + 1] || out.file;
   }
   return out;
@@ -58,7 +62,12 @@ async function main() {
       mnu_code: String(m?.mnu_code || '').trim(),
       mnu_name: String(m?.mnu_name || m?.mnu_description || '').trim(),
       mnu_description: String(m?.mnu_description || '').trim(),
-      mnu_icon: m?.mnu_icon === undefined ? undefined : String(m.mnu_icon || '').trim(),
+      mnu_icon: (() => {
+        if (m?.mnu_icon === undefined || m?.mnu_icon === null) return undefined;
+        const icon = String(m.mnu_icon || '').trim();
+        if (!icon && !args.allowEmptyIcon) return undefined;
+        return icon;
+      })(),
       mnu_status: m?.mnu_status === undefined ? undefined : String(m.mnu_status || '').trim().toUpperCase()
     }))
     .filter((m) => m.mnu_code && m.mnu_description);
@@ -70,6 +79,8 @@ async function main() {
   // Preview
   console.log(`File: ${path.relative(path.join(__dirname, '..'), filePath)}`);
   console.log(`Menus in file (valid): ${cleaned.length}`);
+  const iconProvided = cleaned.filter((m) => m.mnu_icon !== undefined).length;
+  console.log(`Icon updates: ${iconProvided} (${args.allowEmptyIcon ? 'allow empty' : 'skip empty'})`);
   cleaned.slice(0, 10).forEach((m) => console.log(`- ${m.mnu_code} | ${m.mnu_description}`));
   if (cleaned.length > 10) console.log(`... and ${cleaned.length - 10} more`);
   console.log(`Mode: ${args.apply ? 'APPLY (write to DB)' : 'DRY-RUN (no DB writes)'}`);

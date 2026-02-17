@@ -12,6 +12,9 @@ $(document).ready(function () {
     const MAX_USERS_PER_CARD = 10;
     const AVATAR_VISIBLE = 6;
     const TOP_POPULAR_LIMIT = 8;
+    const GRID_MAX_ROWS = 25;
+    const GRID_ROW_HEIGHT = 25;
+    const GRID_HEIGHT = 635;
     const PRIORITY_MENUS = [
         { code: 'menuSignup', label: 'Register', icon: 'RG', category: 'settings', clickCounter: 0, lastClickedAt: null },
         { code: 'menuLogin', label: 'Login', icon: 'LG', category: 'settings', clickCounter: 0, lastClickedAt: null }
@@ -51,6 +54,71 @@ $(document).ready(function () {
         userRights: 'menuUserRights',
         attendanceSync: 'menuTimeAttendanceSync'
     };
+
+    function resolveGridTotalRows(comp) {
+        if (!comp || typeof comp.getDataSource !== 'function') return 0;
+        const ds = comp.getDataSource();
+        if (!ds) return 0;
+
+        const totalCount = typeof ds.totalCount === 'function' ? ds.totalCount() : null;
+        if (typeof totalCount === 'number' && !Number.isNaN(totalCount)) {
+            return totalCount;
+        }
+
+        if (typeof ds.items === 'function') {
+            const items = ds.items();
+            return Array.isArray(items) ? items.length : 0;
+        }
+
+        if (Array.isArray(ds._items)) {
+            return ds._items.length;
+        }
+
+        return 0;
+    }
+
+    function syncGridFilterRow(comp) {
+        if (!comp || typeof comp.option !== 'function') return;
+        const totalRows = resolveGridTotalRows(comp);
+        const shouldShowFilter = totalRows > GRID_MAX_ROWS;
+        const currentFilterRow = comp.option('filterRow') || {};
+        if (Boolean(currentFilterRow.visible) === shouldShowFilter) return;
+        comp.option('filterRow', { ...currentFilterRow, visible: shouldShowFilter });
+    }
+
+    function applyGridGlobalDefaults() {
+        if (!window.DevExpress?.ui?.dxDataGrid) return;
+
+        DevExpress.ui.dxDataGrid.defaultOptions({
+            options: {
+                rowHeight: GRID_ROW_HEIGHT,
+                height: GRID_HEIGHT,
+                scrolling: {
+                    mode: 'virtual',
+                    rowRenderingMode: 'virtual'
+                },
+                paging: {
+                    pageSize: GRID_MAX_ROWS
+                },
+                filterRow: {
+                    visible: false
+                },
+                onInitialized: (e) => {
+                    const comp = e?.component;
+                    if (!comp || comp.__globalGridStandardBound) return;
+                    comp.__globalGridStandardBound = true;
+
+                    comp.on('contentReady', (args) => {
+                        syncGridFilterRow(args?.component || comp);
+                    });
+
+                    syncGridFilterRow(comp);
+                }
+            }
+        });
+    }
+
+    applyGridGlobalDefaults();
 
     function setMainContainerTitle(text) {
         const titleEl = $('#mainContainerTitle');
@@ -232,9 +300,35 @@ $(document).ready(function () {
         return String(a?.code || '').localeCompare(String(b?.code || ''));
     }
 
+    function decodeHtmlNumericEntities(value) {
+        const text = String(value || '');
+        return text
+            .replace(/&#x([0-9a-f]+);/gi, (full, hex) => {
+                const codePoint = Number.parseInt(hex, 16);
+                if (!Number.isFinite(codePoint)) return full;
+                try {
+                    return String.fromCodePoint(codePoint);
+                } catch {
+                    return full;
+                }
+            })
+            .replace(/&#([0-9]+);/g, (full, dec) => {
+                const codePoint = Number.parseInt(dec, 10);
+                if (!Number.isFinite(codePoint)) return full;
+                try {
+                    return String.fromCodePoint(codePoint);
+                } catch {
+                    return full;
+                }
+            });
+    }
+
     function resolveMenuIconText(icon, label, code) {
         const rawIcon = String(icon || '').trim();
-        if (rawIcon) return rawIcon.length > 2 ? rawIcon.slice(0, 2) : rawIcon;
+        if (rawIcon) {
+            const decoded = decodeHtmlNumericEntities(rawIcon);
+            return decoded.length > 2 ? decoded.slice(0, 2) : decoded;
+        }
         const base = String(label || code || 'M').trim();
         return (base ? base.charAt(0) : 'M').toUpperCase();
     }

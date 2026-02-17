@@ -14,6 +14,9 @@ Base paths from `app.js`:
 - `/api/schedules`
 - `/api/scheduler-heads`
 - `/api/changes`
+- `/api/menus`
+- `/api/menu-authorize`
+- `/api/menu-layouts`
 
 ## /api/auth
 - `POST /register`
@@ -115,3 +118,9 @@ Base paths from `app.js`:
 - `GET /`
 - `PATCH /:id/approve`
 - `PATCH /:id/reject`
+
+## /api/menus
+- `GET /`
+- `POST /import` (temporary: no auth)
+- `POST /bulk-upsert` (temporary: no auth)
+- `POST /:mnuCode/click` (auth)
