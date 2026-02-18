@@ -94,13 +94,13 @@ window.renderKpiEntry = async function renderKpiEntry() {
         list.forEach((def) => {
             if (def.valueType === 'group') {
                 if (colIndex !== 0) {
-                    items.push({ itemType: 'empty', colSpan: 2 - colIndex });
+                    items.push({ itemType: 'empty', colSpan: 3 - colIndex });
                     colIndex = 0;
                 }
                 items.push({
                     itemType: 'group',
                     caption: def.name,
-                    colSpan: 2,
+                    colSpan: 3,
                     items: []
                 });
                 return;
@@ -142,13 +142,20 @@ window.renderKpiEntry = async function renderKpiEntry() {
                             if (e.value === null || e.value === '') {
                                 e.component.option('value', 0);
                             }
+                            // Add/remove highlight based on value
+                            const $input = $(e.element).find('input');
+                            if (e.value && e.value !== 0) {
+                                $input.css('backgroundColor', '#cce5ff');
+                            } else {
+                                $input.css('backgroundColor', '');
+                            }
                         }
                     }
                 };
             }
 
             items.push(item);
-            colIndex = (colIndex + 1) % 2;
+            colIndex = (colIndex + 1) % 3;
         });
 
         return items;
@@ -312,7 +319,7 @@ window.renderKpiEntry = async function renderKpiEntry() {
         items: [
             {
                 itemType: 'group',
-                colCount: 1,
+                colCount: 3,
                 caption: '',
                 items: buildDynamicItems()
             },
