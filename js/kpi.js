@@ -86,10 +86,19 @@ window.renderKpiEntry = async function renderKpiEntry() {
     };
 
     const buildDynamicItems = () => {
+        // Fixed colors for 16 groups
+        const groupColors = [
+            '#e3f2fd', '#f3e5f5', '#e8f5e9', '#fff3e0', 
+            '#fce4ec', '#f1f8e9', '#e0f2f1', '#ede7f6',
+            '#fbe9e7', '#f0f4c3', '#eceff1', '#fff9c4',
+            '#e1f5fe', '#f8bbd0', '#c8e6c9', '#ffccbc'
+        ];
+
         const list = definitions
             .sort((a, b) => (a.order || 0) - (b.order || 0));
         const items = [];
         let colIndex = 0;
+        let groupIndex = 0; // Track group count
 
         list.forEach((def) => {
             if (def.valueType === 'group') {
@@ -97,11 +106,23 @@ window.renderKpiEntry = async function renderKpiEntry() {
                     items.push({ itemType: 'empty', colSpan: 3 - colIndex });
                     colIndex = 0;
                 }
+                const bgColor = groupColors[groupIndex % groupColors.length];
+                groupIndex++;
                 items.push({
                     itemType: 'group',
                     caption: def.name,
                     colSpan: 3,
-                    items: []
+                    items: [],
+                    cssClass: 'kpi-group-colored',
+                    template: function() {
+                        return $('<div>').css({
+                            'backgroundColor': bgColor,
+                            'padding': '12px',
+                            'borderRadius': '4px',
+                            'marginBottom': '12px',
+                            'fontWeight': '500'
+                        });
+                    }
                 });
                 return;
             }
