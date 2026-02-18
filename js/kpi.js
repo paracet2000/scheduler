@@ -171,15 +171,22 @@ window.renderKpiEntry = async function renderKpiEntry() {
         const iso = new Date(date);
         const dateStr = iso.toISOString().slice(0, 10);
         const key = `${wardId}|${shiftCode}|${dateStr}`;
-        if (key === lastLoadKey) return;
+        console.log('🔵 Loading entry with key:', key, 'Last key:', lastLoadKey);
+        if (key === lastLoadKey) {
+            console.log('⚠️ Key matches last load, skipping...');
+            return;
+        }
         lastLoadKey = key;
         try {
             const res = await Common.fetchWithAuth(`/api/kpi/entries?wardId=${wardId}&shiftCode=${shiftCode}&date=${dateStr}`);
             const json = await res.json();
+            console.log('📡 API Response:', json);
             if (!res.ok) throw new Error(json.message || 'Load entry failed');
             const entry = json.data;
+            console.log('✅ Entry loaded:', entry);
             applyEntryValues(entry?.values || {});
         } catch (err) {
+            console.error('❌ Load entry error:', err);
             DevExpress.ui.notify(err.message || 'Load entry failed', 'error', 2000);
             applyEntryValues({});
         }
@@ -257,7 +264,7 @@ window.renderKpiEntry = async function renderKpiEntry() {
                     items: wards,
                     displayExpr: 'name',
                     valueExpr: '_id',
-                    onBlur: () => {
+                    onValueChanged: () => {
                         const data = headerFormInstance.option('formData');
                         loadEntry(data.wardId, data.shiftCode, data.date);
                     }
@@ -273,7 +280,7 @@ window.renderKpiEntry = async function renderKpiEntry() {
                     items: shifts,
                     displayExpr: 'code',
                     valueExpr: 'code',
-                    onBlur: () => {
+                    onValueChanged: () => {
                         const data = headerFormInstance.option('formData');
                         loadEntry(data.wardId, data.shiftCode, data.date);
                     }
@@ -287,7 +294,7 @@ window.renderKpiEntry = async function renderKpiEntry() {
                 editorType: 'dxDateBox',
                 editorOptions: {
                     displayFormat: 'dd/MM/yyyy',
-                    onBlur: () => {
+                    onValueChanged: () => {
                         const data = headerFormInstance.option('formData');
                         loadEntry(data.wardId, data.shiftCode, data.date);
                     }

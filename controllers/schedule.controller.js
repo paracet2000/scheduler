@@ -37,6 +37,71 @@ const assertValidShiftCodes = (codes, validSet) => {
 const normalizeShiftCodeValue = (value) =>
   String(value || '').toUpperCase().replace(/\s+/g, '').trim();
 
+const parsePositionList = (positions) => {
+  if (Array.isArray(positions)) {
+    return positions.map((p) => String(p || '').trim()).filter(Boolean);
+  }
+  if (typeof positions === 'string' && positions.trim()) {
+    return positions
+      .split(',')
+      .map((p) => String(p || '').trim())
+      .filter(Boolean);
+  }
+  return [];
+};
+
+const buildSummaryRowsFromWardMembers = async ({ wardId, positionList, daysCount }) => {
+  const userWardQuery = {
+    wardId,
+    status: 'ACTIVE'
+  };
+
+  if (Array.isArray(positionList) && positionList.length) {
+    userWardQuery.position = { $in: positionList };
+  }
+
+  const userWards = await WardMember.find(userWardQuery)
+    .select('userId position')
+    .lean();
+
+  const wardUserIds = Array.from(new Set(
+    userWards
+      .map((uw) => String(uw?.userId || '').trim())
+      .filter((id) => /^[a-f0-9]{24}$/i.test(id))
+  ));
+
+  const users = wardUserIds.length
+    ? await User.find({ _id: { $in: wardUserIds } })
+        .select('name employeeCode empcode avatar')
+        .lean()
+    : [];
+
+  const userMap = new Map(users.map((u) => [String(u._id), u]));
+  const rowsMap = new Map();
+
+  userWards.forEach((uw) => {
+    const userId = String(uw?.userId || '').trim();
+    if (!/^[a-f0-9]{24}$/i.test(userId)) return;
+    const user = userMap.get(userId) || {};
+    const fallbackName = `User ${userId.slice(-6)}`;
+    rowsMap.set(userId, {
+      userId,
+      name: String(user.name || '').trim() || fallbackName,
+      employeeCode: String(user.employeeCode || user.empcode || '').trim(),
+      avatar: user.avatar || '',
+      position: String(uw?.position || '').trim(),
+      days: Array.from({ length: daysCount }, () => []),
+      dayChange: Array.from({ length: daysCount }, () => false),
+      totals: { morning: 0, afternoon: 0, night: 0, total: 0 }
+    });
+  });
+
+  return {
+    rowsMap,
+    userIds: Array.from(rowsMap.keys())
+  };
+};
+
 /**
  * USER: book ตารางเวร (ทั้งเดือน)
  */
@@ -563,30 +628,12 @@ exports.summaryByWard = asyncHandler(async (req, res) => {
   const from = new Date(yearNum, monthNum - 1, 1);
   const to = new Date(yearNum, monthNum, 0, 23, 59, 59);
   const daysInMonth = new Date(yearNum, monthNum, 0).getDate();
-
-  let positionList = [];
-  if (Array.isArray(positions)) {
-    positionList = positions.filter(Boolean);
-  } else if (typeof positions === 'string' && positions.trim()) {
-    positionList = positions.split(',').map(p => p.trim()).filter(Boolean);
-  }
-
-  const userWardQuery = {
+  const positionList = parsePositionList(positions);
+  const { rowsMap, userIds } = await buildSummaryRowsFromWardMembers({
     wardId,
-    status: 'ACTIVE'
-  };
-
-  if (positionList.length) {
-    userWardQuery.position = { $in: positionList };
-  }
-
-  const userWards = await WardMember.find(userWardQuery)
-    .populate('userId', 'name employeeCode avatar')
-    .lean();
-
-  const userIds = userWards
-    .map(uw => uw.userId?._id)
-    .filter(Boolean);
+    positionList,
+    daysCount: daysInMonth
+  });
 
   const schedules = userIds.length
     ? await Schedule.find({
@@ -628,23 +675,6 @@ exports.summaryByWard = asyncHandler(async (req, res) => {
 
     return 'other';
   };
-
-  const rowsMap = new Map();
-  userWards.forEach(uw => {
-    const user = uw.userId || {};
-    const id = String(user._id || '');
-    if (!id) return;
-    rowsMap.set(id, {
-      userId: id,
-      name: user.name || '',
-      employeeCode: user.employeeCode || '',
-      avatar: user.avatar || '',
-      position: uw.position || '',
-      days: Array.from({ length: daysInMonth }, () => []),
-      dayChange: Array.from({ length: daysInMonth }, () => false),
-      totals: { morning: 0, afternoon: 0, night: 0, total: 0 }
-    });
-  });
 
   schedules.forEach(s => {
     const id = String(s.userId);
@@ -709,30 +739,14 @@ exports.summaryByWardRange = asyncHandler(async (req, res) => {
   if (end < start) {
     throw new AppError('Invalid date range', 400);
   }
-
-  let positionList = [];
-  if (Array.isArray(positions)) {
-    positionList = positions.filter(Boolean);
-  } else if (typeof positions === 'string' && positions.trim()) {
-    positionList = positions.split(',').map(p => p.trim()).filter(Boolean);
-  }
-
-  const userWardQuery = {
+  const MS_PER_DAY = 24 * 60 * 60 * 1000;
+  const daysCount = Math.floor((end.getTime() - start.getTime()) / MS_PER_DAY) + 1;
+  const positionList = parsePositionList(positions);
+  const { rowsMap, userIds } = await buildSummaryRowsFromWardMembers({
     wardId,
-    status: 'ACTIVE'
-  };
-
-  if (positionList.length) {
-    userWardQuery.position = { $in: positionList };
-  }
-
-  const userWards = await WardMember.find(userWardQuery)
-    .populate('userId', 'name employeeCode avatar')
-    .lean();
-
-  const userIds = userWards
-    .map(uw => uw.userId?._id)
-    .filter(Boolean);
+    positionList,
+    daysCount
+  });
 
   const schedules = userIds.length
     ? await Schedule.find({
@@ -776,29 +790,10 @@ exports.summaryByWardRange = asyncHandler(async (req, res) => {
   };
 
   const dates = [];
-  const MS_PER_DAY = 24 * 60 * 60 * 1000;
-  const daysCount = Math.floor((end.getTime() - start.getTime()) / MS_PER_DAY) + 1;
   for (let i = 0; i < daysCount; i += 1) {
     const d = new Date(start.getTime() + i * MS_PER_DAY);
     dates.push(d.toISOString());
   }
-
-  const rowsMap = new Map();
-  userWards.forEach(uw => {
-    const user = uw.userId || {};
-    const id = String(user._id || '');
-    if (!id) return;
-    rowsMap.set(id, {
-      userId: id,
-      name: user.name || '',
-      employeeCode: user.employeeCode || '',
-      avatar: user.avatar || '',
-      position: uw.position || '',
-      days: Array.from({ length: daysCount }, () => []),
-      dayChange: Array.from({ length: daysCount }, () => false),
-      totals: { morning: 0, afternoon: 0, night: 0, total: 0 }
-    });
-  });
 
   schedules.forEach(s => {
     const id = String(s.userId);
